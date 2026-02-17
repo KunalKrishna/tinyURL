@@ -3,16 +3,17 @@
 *Disable Whitelabel Error Page*
 
 application.properties 
--  server.error.whitelabel.enabled=false
--  Or, spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.web.servlet.error.ErrorMvcAutoConfiguration
--  Or @EnableAutoConfiguration(exclude = {ErrorMvcAutoConfiguration.class})
+-  `server.error.whitelabel.enabled=false`
+-  Or, `spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.web.servlet.error.ErrorMvcAutoConfiguration`
+-  Or `@EnableAutoConfiguration(exclude = {ErrorMvcAutoConfiguration.class})`
+
 Better Add Custom View
 - Or, Controller-View Technique
 -----------------------------
 STATIC Pages
 -----------------------------
-you can place the views like error.html in "res/static" w/o importing thymeleaf dependency
-but you will need to return return "error.html"
+you can place the views like `error.html` in "`res/static`" w/o importing thymeleaf dependency
+but you will need to return return "`error.html`"
 ```java
 @Controller
 public class CustomErrorController implements ErrorController {
@@ -24,7 +25,8 @@ public class CustomErrorController implements ErrorController {
     }
 }
 ```
-Limitations : Cannot map dynamic data(Model) on views.
+**Limitations** : Cannot map dynamic data(Model) on views.
+
 -----------------------------
 DYNAMIC Pages(using Thymeleaf)
 -----------------------------
@@ -69,11 +71,11 @@ To be more specific use its special subtypes e.g. GetMapping, PostMapping etc.
 
 #### Specialized Composed Annotations
 Since Spring 4.3, method-level variants (composed annotations) were introduced as a shortcut and best practice for improved readability. These are meta-annotated with @RequestMapping.
-`@GetMapping` (shortcut for `@RequestMapping(method = RequestMethod.GET)`)
-`@PostMappin`g (shortcut for `@RequestMapping(method = RequestMethod.POST)`)
-`@PutMapping` (shortcut for `@RequestMapping(method = RequestMethod.PUT)`)
-`@DeleteMapping` (shortcut for `@RequestMapping(method = RequestMethod.DELETE)`)
-`@PatchMapping` (shortcut for `@RequestMapping(method = RequestMethod.PATCH)`)
+- `@GetMapping` (shortcut for `@RequestMapping(method = RequestMethod.GET)`)
+- `@PostMappin`g (shortcut for `@RequestMapping(method = RequestMethod.POST)`)
+- `@PutMapping` (shortcut for `@RequestMapping(method = RequestMethod.PUT)`)
+- `@DeleteMapping` (shortcut for `@RequestMapping(method = RequestMethod.DELETE)`)
+- `@PatchMapping` (shortcut for `@RequestMapping(method = RequestMethod.PATCH)`)
 
 Now, we have made the view a dynamic page. 
 Now, instead of returning views as html what if method returns JSON data so that we can 
@@ -84,7 +86,7 @@ Because
 gives following error
 `org.thymeleaf.exceptions.TemplateInputException: Error resolving template [{ "message" : "Welcome to URL Shortner"}],`
 
-Ans : use @ResponseBody annotation on method
+**Solution** : use `@ResponseBody` annotation on method
 
 ```java
 @Controller
@@ -99,7 +101,7 @@ public class CustomErrorController implements ErrorController {
 ```
 
 Still further if all methods of the controller is going to return JSON better to delegate
-@ResponseBody at class level.
+`@ResponseBody` at class level.
 ```java
 @ResponseBody
 @Controller
@@ -116,8 +118,7 @@ public class CustomErrorController implements ErrorController {
     }
 }
 ```
-Still combine two @ResponseBody + @Controller into single annotation @RestController 
-
+Still combine two `@ResponseBody` + `@Controller` $$\rightarrow$$ `@RestController` 
 
 #### Enabling Spring Boot DevTools in IntelliJ IDEA
 https://youtu.be/kIAtwEcb6JI?si=jWsZQcxXQt-z2pM2 
