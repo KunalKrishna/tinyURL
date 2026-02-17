@@ -12,7 +12,10 @@ import java.util.Arrays;
 public class HomeController {
 
     @GetMapping("/")
-    public String home() {
+    public String home(Model model) {
+        model.addAttribute("title", "Spring Boot Url Shortner - Thymeleaf");
+        model.addAttribute("var", "test");
+        model.addAttribute("var2", "test2");
         return "index";
     }
 
@@ -22,23 +25,4 @@ public class HomeController {
         return "about";
     }
 
-    @GetMapping("/json")
-    @ResponseBody
-    /*
-    * http://localhost:8080/json?param=val999&a=1&b=2
-    * */
-    public String handleError(HttpServletRequest request, Model model) {
-        model.addAttribute("url", request.getRequestURL().toString());
-        request.getParameterMap().forEach((k,v)->{
-            System.out.println("key: "+k+"value:"+ Arrays.deepToString(v));
-        });
-        System.out.println("request :" + request.getQueryString());
-        return "{ \"message\" : \"Welcome to URL Shortner\"}";
-    }
-    /*
-    * key: paramvalue:[val999]
-    * key: avalue:[1]
-    * key: bvalue:[2]
-    * request :param=val999&a=1&b=2
-    * */
 }

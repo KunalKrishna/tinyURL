@@ -49,8 +49,31 @@ public class CustomErrorController implements ErrorController {
     }
 }
 ```
+and view the attribute using `th:text="${title}"`
+```html
+<!DOCTYPE html>
+<html lang="en"
+    xmlns:th="https://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Home</title>
+</head>
+<body>
+<h1 th:text="${title}"> Project Name</h1>
+</body>
+</html>
+```
+
 NOTE: @RequestMapping is a generic request mapper which accepts all type of HTTP verbs. 
 To be more specific use its special subtypes e.g. GetMapping, PostMapping etc.
+
+#### Specialized Composed Annotations
+Since Spring 4.3, method-level variants (composed annotations) were introduced as a shortcut and best practice for improved readability. These are meta-annotated with @RequestMapping.
+`@GetMapping` (shortcut for `@RequestMapping(method = RequestMethod.GET)`)
+`@PostMappin`g (shortcut for `@RequestMapping(method = RequestMethod.POST)`)
+`@PutMapping` (shortcut for `@RequestMapping(method = RequestMethod.PUT)`)
+`@DeleteMapping` (shortcut for `@RequestMapping(method = RequestMethod.DELETE)`)
+`@PatchMapping` (shortcut for `@RequestMapping(method = RequestMethod.PATCH)`)
 
 Now, we have made the view a dynamic page. 
 Now, instead of returning views as html what if method returns JSON data so that we can 
@@ -94,3 +117,7 @@ public class CustomErrorController implements ErrorController {
 }
 ```
 Still combine two @ResponseBody + @Controller into single annotation @RestController 
+
+
+#### Enabling Spring Boot DevTools in IntelliJ IDEA
+https://youtu.be/kIAtwEcb6JI?si=jWsZQcxXQt-z2pM2 
