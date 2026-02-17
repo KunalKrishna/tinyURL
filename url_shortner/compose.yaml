@@ -1,0 +1,29 @@
+services:
+  postgres:
+    image: 'postgres:17'
+    environment:
+      POSTGRES_DB: postgresDB #<-- THIS creates the DB automatically
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+#      - 'POSTGRES_DB=postgres'
+#      - 'POSTGRES_USER=postgres'
+#      - 'POSTGRES_PASSWORD=postgres'
+    ports:
+      - '5432:5432'
+
+
+#services:
+#  postgres:
+#    image: pgvector/pgvector:pg16
+#    container_name: heelp-ai-postgres
+#    ports:
+#      - "5432:5432"
+#    environment:
+#      POSTGRES_DB: rag_db #<-- THIS creates the DB automatically
+#      POSTGRES_USER: postgres
+#      POSTGRES_PASSWORD: password
+#    volumes:
+#      - postgres_data:/var/lib/postgresql/data
+#
+#volumes:
+#  postgres_data:
