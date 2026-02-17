@@ -1,13 +1,13 @@
 # Customizing ErrorPage 
 
 *Disable Whitelabel Error Page*
-1.
-#server.error.whitelabel.enabled=false
-2. Or,
-spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.web.servlet.error.ErrorMvcAutoConfiguration
-3. Or 
-@EnableAutoConfiguration(exclude = {ErrorMvcAutoConfiguration.class})
-4. Or, Controller-View Technique
+
+application.properties 
+-  server.error.whitelabel.enabled=false
+-  Or, spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.web.servlet.error.ErrorMvcAutoConfiguration
+-  Or @EnableAutoConfiguration(exclude = {ErrorMvcAutoConfiguration.class})
+Better Add Custom View
+- Or, Controller-View Technique
 -----------------------------
 STATIC Pages
 -----------------------------

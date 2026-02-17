@@ -1,4 +1,4 @@
-package com.example.spring_boot_url_shortner;
+package com.abitmanipulator.url_shortner;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;

@@ -1,4 +1,4 @@
-package com.example.spring_boot_url_shortner.controller;
+package com.abitmanipulator.url_shortner.controller;
 
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.stereotype.Controller;
