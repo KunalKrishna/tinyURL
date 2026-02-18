@@ -2,11 +2,18 @@ package com.abitmanipulator.url_shortner.domain.entity;
 
 import com.abitmanipulator.url_shortner.domain.model.Role;
 import jakarta.persistence.*;
+import lombok.*;
 
 import java.time.LocalDateTime;
 
+/*
+* LIMITATIONS : Not suitable for production-grade application.
+* Because : all things required in DB cannot be achieved by JPA Entities e.g. stored procedure, views
+* Also : if you rename a column then JPA adds a new col w/ new name. w/o removing old column from table.
+* */
 @Entity
 @Table(name = "users")
+@Data
 public class User {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -27,53 +34,5 @@ public class User {
     private Role role;
 
     @Column(nullable = false)
-    private LocalDateTime createdDate = LocalDateTime.now();
-
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public String getEmail() {
-        return email;
-    }
-
-    public void setEmail(String email) {
-        this.email = email;
-    }
-
-    public String getPassword() {
-        return password;
-    }
-
-    public void setPassword(String password) {
-        this.password = password;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public Role getRole() {
-        return role;
-    }
-
-    public void setRole(Role role) {
-        this.role = role;
-    }
-
-    public LocalDateTime getCreatedDate() {
-        return createdDate;
-    }
-
-    public void setCreatedDate(LocalDateTime createdDate) {
-        this.createdDate = createdDate;
-    }
+    private LocalDateTime created_at = LocalDateTime.now();
 }

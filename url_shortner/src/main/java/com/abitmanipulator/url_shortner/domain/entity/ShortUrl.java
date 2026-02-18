@@ -11,75 +11,24 @@ public class ShortUrl {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(unique = true ,nullable = false)
+    private String shortKey;
+
     @Column(nullable = false)
     private String originalUrl;
 
-    @Column(unique = true ,nullable = false)
-    private String shortUrl;
-
+    // Many short_urls belong to one User
+    // @JoinColumn specifies the foreign key column in the 'short_urls' table
     @ManyToOne
-    @JoinColumn(name = "created_by")
+    @JoinColumn(name = "created_by")// This will be the FK column in the 'short_urls' table
     private User createdBy;
-
-    private Boolean isPrivate;
 
     private LocalDateTime createdAt = LocalDateTime.now();
 
     private LocalDateTime expiresAt;
 
-    public Long getId() {
-        return id;
-    }
+    private Boolean isPrivate;
 
-    public void setId(Long id) {
-        this.id = id;
-    }
+    private int click_count;
 
-    public String getOriginalUrl() {
-        return originalUrl;
-    }
-
-    public void setOriginalUrl(String originalUrl) {
-        this.originalUrl = originalUrl;
-    }
-
-    public String getShortUrl() {
-        return shortUrl;
-    }
-
-    public void setShortUrl(String shortUrl) {
-        this.shortUrl = shortUrl;
-    }
-
-    public User getCreatedBy() {
-        return createdBy;
-    }
-
-    public void setCreatedBy(User createdBy) {
-        this.createdBy = createdBy;
-    }
-
-    public Boolean getPrivate() {
-        return isPrivate;
-    }
-
-    public void setPrivate(Boolean aPrivate) {
-        isPrivate = aPrivate;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
-    }
-
-    public LocalDateTime getExpiresAt() {
-        return expiresAt;
-    }
-
-    public void setExpiresAt(LocalDateTime expiresAt) {
-        this.expiresAt = expiresAt;
-    }
 }
