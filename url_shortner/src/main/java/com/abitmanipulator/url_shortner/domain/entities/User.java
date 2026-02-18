@@ -1,4 +1,4 @@
-package com.abitmanipulator.url_shortner.domain.entity;
+package com.abitmanipulator.url_shortner.domain.entities;
 
 import jakarta.persistence.*;
 import lombok.Getter;
