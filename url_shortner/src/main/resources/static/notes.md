@@ -325,3 +325,42 @@ Case V : Define both schema generation (schema.sql) and  data population(data.sq
 # just single line enough:
 spring.sql.init.mode=always
 ```
+However, if we re-run spring boot application it gives error
+```log
+Caused by: org.postgresql.util.PSQLException: ERROR: relation "users" already exists
+	at org.postgresql.core.v3.QueryExecutorImpl.receiveErrorResponse(QueryExecutorImpl.java:2846) ~[postgresql-42.7.9.jar:42.7.9]
+```
+because it reruns sql scripts and try creating tables again and inserting data.
+How to avoid? **Flyway Migrations**
+- import dependency through pom.xml
+- resources/db/migration -> places scripts with name format V1__name.sql
+- remove/comment : `spring.sql.init.mode=always`
+
+Result : 
+```log
+2026-02-18T04:14:11.315-05:00  INFO 27256 --- [spring-boot-url-shortner] [  restartedMain] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
+2026-02-18T04:14:11.351-05:00  INFO 27256 --- [spring-boot-url-shortner] [  restartedMain] org.flywaydb.core.FlywayExecutor         : Database: jdbc:postgresql://localhost:5432/postgresDB (PostgreSQL 17.8)
+2026-02-18T04:14:11.410-05:00  INFO 27256 --- [spring-boot-url-shortner] [  restartedMain] o.f.c.i.s.JdbcTableSchemaHistory         : Schema history table "public"."flyway_schema_history" does not exist yet
+2026-02-18T04:14:11.418-05:00  INFO 27256 --- [spring-boot-url-shortner] [  restartedMain] o.f.core.internal.command.DbValidate     : Successfully validated 2 migrations (execution time 00:00.024s)
+2026-02-18T04:14:11.449-05:00  INFO 27256 --- [spring-boot-url-shortner] [  restartedMain] o.f.c.i.s.JdbcTableSchemaHistory         : Creating Schema History table "public"."flyway_schema_history" ...
+2026-02-18T04:14:11.631-05:00  INFO 27256 --- [spring-boot-url-shortner] [  restartedMain] o.f.core.internal.command.DbMigrate      : Current version of schema "public": << Empty Schema >>
+2026-02-18T04:14:11.652-05:00  INFO 27256 --- [spring-boot-url-shortner] [  restartedMain] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "1 - create tables"
+2026-02-18T04:14:11.759-05:00  INFO 27256 --- [spring-boot-url-shortner] [  restartedMain] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "2 - insert sample data"
+2026-02-18T04:14:11.828-05:00  INFO 27256 --- [spring-boot-url-shortner] [  restartedMain] o.f.core.internal.command.DbMigrate      : Successfully applied 2 migrations to schema "public", now at version v2 (execution time 00:00.087s)
+2026-02-18T04:14:12.011-05:00  INFO 27256 --- [spring-boot-url-shortner] [  restartedMain] o.hibernate.jpa.internal.util.LogHelper  : HHH000204: Processing PersistenceUnitInfo [name: default]
+2026-02-18T04:14:12.147-05:00  INFO 27256 --- [spring-boot-url-shortner] [  restartedMain] org.hibernate.Version                    : HHH000412: Hibernate ORM core version 6.6.41.Final
+2026-02-18T04:14:12.223-05:00  INFO 27256 --- [spring-boot-url-shortner] [  restartedMain] o.h.c.internal.RegionFactoryInitiator    : HHH000026: Second-level cache disabled
+2026-02-18T04:14:12.675-05:00  INFO 27256 --- [spring-boot-url-shortner] [  restartedMain] o.s.o.j.p.SpringPersistenceUnitInfo      : No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-02-18T04:14:12.826-05:00  INFO 27256 --- [spring-boot-url-shortner] [  restartedMain] org.hibernate.orm.connections.pooling    : HHH10001005: Database info:
+	Database JDBC URL [Connecting through datasource 'HikariDataSource (HikariPool-1)']
+	Database driver: undefined/unknown
+	Database version: 17.8
+	Autocommit mode: undefined/unknown
+	Isolation level: undefined/unknown
+	Minimum pool size: undefined/unknown
+	Maximum pool size: undefined/unknown
+2026-02-18T04:14:14.355-05:00  INFO 27256 --- [spring-boot-url-shortner] [  restartedMain] o.h.e.t.j.p.i.JtaPlatformInitiator       : HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-02-18T04:14:14.359-05:00  INFO 27256 --- [spring-boot-url-shortner] [  restartedMain] j.LocalContainerEntityManagerFactoryBean : Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-02-18T04:14:14.405-05:00  WARN 27256 --- [spring-boot-url-shortner] [  restartedMain] JpaBaseConfiguration$JpaWebConfiguration : spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2026-02-18T04:14:14.445-05:00  INFO 27256 --- [spring-boot-url-shortner] [  restartedMain] o.s.b.a.w.s.WelcomePageHandlerMapping    : Adding welcome page template: index
+```
