@@ -1,4 +1,4 @@
-package com.abitmanipulator.url_shortner.controller;
+package com.abitmanipulator.url_shortner.web.controller;
 
 import jakarta.servlet.RequestDispatcher;
 import jakarta.servlet.http.HttpServletRequest;

@@ -1,34 +1,45 @@
 package com.abitmanipulator.url_shortner.domain.entity;
 
 import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
+import org.hibernate.annotations.ColumnDefault;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
+@Getter
+@Setter
 @Entity
-@Table(name ="short_urls")
+@Table(name = "short_urls")
 public class ShortUrl {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "id", nullable = false)
     private Long id;
 
-    @Column(unique = true ,nullable = false)
+    @Column(name = "short_key", nullable = false, length = 10)
     private String shortKey;
 
-    @Column(nullable = false)
+    @Column(name = "original_url", nullable = false, length = Integer.MAX_VALUE)
     private String originalUrl;
 
-    // Many short_urls belong to one User
-    // @JoinColumn specifies the foreign key column in the 'short_urls' table
-    @ManyToOne
-    @JoinColumn(name = "created_by")// This will be the FK column in the 'short_urls' table
+    @ColumnDefault("false")
+    @Column(name = "is_private", nullable = false)
+    private Boolean isPrivate = false;
+
+    @Column(name = "expires_at")
+    private Instant expiresAt;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "created_by")
     private User createdBy;
 
-    private LocalDateTime createdAt = LocalDateTime.now();
+    @ColumnDefault("0")
+    @Column(name = "click_count", nullable = false)
+    private Long clickCount;
 
-    private LocalDateTime expiresAt;
-
-    private Boolean isPrivate;
-
-    private int click_count;
+    @ColumnDefault("CURRENT_TIMESTAMP")
+    @Column(name = "created_at", nullable = false)
+    private Instant createdAt;
 
 }
