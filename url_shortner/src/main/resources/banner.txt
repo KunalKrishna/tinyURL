@@ -18,4 +18,5 @@ ${AnsiColor.BLUE}
 
 Application: ${spring.application.name}
 Version: ${spring-boot.version}
+Author: ${app.author}
 ${AnsiColor.DEFAULT}
