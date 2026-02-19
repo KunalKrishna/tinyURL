@@ -1,5 +1,7 @@
 package com.abitmanipulator.url_shortner.web.controller;
 
+import com.abitmanipulator.url_shortner.AppConfigProperties;
+import com.abitmanipulator.url_shortner.domain.models.CreateShortUrlCmd;
 import com.abitmanipulator.url_shortner.domain.models.ShortUrlDto;
 import com.abitmanipulator.url_shortner.services.ShortUrlService;
 import com.abitmanipulator.url_shortner.web.controller.dtos.CreateShortUrlForm;
@@ -17,18 +19,19 @@ import java.util.List;
 @Controller
 public class HomeController {
 
-
     private final ShortUrlService shortUrlService;
+    private final AppConfigProperties properties;
 
-    public HomeController(ShortUrlService shortUrlService) {
+    public HomeController(ShortUrlService shortUrlService, AppConfigProperties properties ) {
         this.shortUrlService = shortUrlService;
+        this.properties = properties;
     }
 
     @GetMapping("/")
     public String home(Model model) {
         List<ShortUrlDto> shortUrls = shortUrlService.findAllPublicShortUrls();
         model.addAttribute("shortUrls", shortUrls);
-        model.addAttribute("baseUrl", "http://localhost:8080/");
+        model.addAttribute("baseUrl", properties.baseUrl());
         model.addAttribute("createShortUrlForm", new CreateShortUrlForm(""));
         return "index";
     }
@@ -42,13 +45,16 @@ public class HomeController {
         if(bindingResult.hasErrors()) {
             List<ShortUrlDto> shortUrls = shortUrlService.findAllPublicShortUrls();
             model.addAttribute("shortUrls", shortUrls);
-            model.addAttribute("baseUrl", "http://localhost:8080/");
+            model.addAttribute("baseUrl", properties.baseUrl());
             return "index";
         }
         //TODO : implement logic
-        if(2 == 1) {
-            redirectAttributes.addFlashAttribute("successMessage", "Short url created successfully.");
-        } else {
+        try {
+            CreateShortUrlCmd cmd = new CreateShortUrlCmd(form.originalUrl());
+            var shortUrlDto = shortUrlService.createShortUrl(cmd);
+            redirectAttributes.addFlashAttribute("successMessage", "Short url created successfully." +
+                    properties.baseUrl()+"/s" + shortUrlDto.shortKey());
+        } catch (Exception e) {
             redirectAttributes.addFlashAttribute("errorMessage", "Filed to create short url.");
         }
         return "redirect:/";
