@@ -13,7 +13,7 @@
 </head>
 
 <body>
-<nav class="navbar navbar-expand-md navbar-dark bg-dark fixed-top">
+<nav class="navbar navbar-expand-md navbar-light light fixed-top">
     <div class="container">
         <a class="navbar-brand" th:href="@{/}">URL Shortener</a>
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
@@ -42,6 +42,22 @@
 </nav>
 
 <div class="container">
+    <div th:if="${successMessage}"
+        class="alert alert-success alert-dismissible fade show mt-3"
+        role="alert">
+        <span th:text="${successMessage}"></span>
+        <button type="button" class="btn-close"
+                data-bs-dismiss="alert" aria-label="Close">
+        </button>
+    </div>
+    <div th:if="${errorMessage}"
+         class="alert alert-success alert-dismissible fade show mt-3"
+         role="alert">
+        <span th:text="${errorMessage}"></span>
+        <button type="button" class="btn-close"
+                data-bs-dismiss="alert" aria-label="Close">
+        </button>
+    </div>
 
     <div layout:fragment="content">
         <!-- Your Page Content Here -->
