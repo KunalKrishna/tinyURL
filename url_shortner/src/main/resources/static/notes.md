@@ -427,5 +427,22 @@ Need more flexibility with validation rules? Learn more: https://rd.gt/3AbJUZE
 
 
 Process finished with exit code 0
-
 ```
+
+## FORM submission
+the controller method processing post request should accept following argument in that specific order : 
+```java        
+@ModelAttribute("createShortUrlForm") 
+@Valid
+CreateShortUrlForm form,
+BindingResult bindingResult,
+RedirectAttributes redirectAttributes,
+Model model
+```
+
+Q. Why do we use redirectAttributes.**addFlashAttribute()**?
+
+Ans : Risk of duplicate processing of POST requests(if user ends up refreshing the page).
+addFlashAttribute() follows **Post/Redirect/Get** (PRG) pattern for form submission.
+Read more : https://www.baeldung.com/spring-web-flash-attributes
+

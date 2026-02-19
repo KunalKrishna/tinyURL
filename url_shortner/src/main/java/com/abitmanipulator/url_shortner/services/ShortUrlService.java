@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -76,4 +77,15 @@ public class ShortUrlService {
     }
 
 
+    public Optional<ShortUrlDto> accessOriginalUrl(String shortKey) {
+        Optional<ShortUrl> shortUrlOpt = shortUrlRepository.findByShortKey(shortKey);
+        if(shortUrlOpt.isEmpty()) {
+            return Optional.empty();
+        }
+        ShortUrl shortUrl = shortUrlOpt.get();
+        if(shortUrl.getExpiresAt() != null && shortUrl.getExpiresAt().isBefore(Instant.now())) {
+            return Optional.empty();
+        }
+        return shortUrlOpt.map(entityMapper::toShortUrlDto);
+    }
 }

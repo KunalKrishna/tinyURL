@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface ShortUrlRepository extends JpaRepository<ShortUrl, Long> {
@@ -16,5 +17,8 @@ public interface ShortUrlRepository extends JpaRepository<ShortUrl, Long> {
     @EntityGraph(attributePaths = {"createdBy"})
     List<ShortUrl> findPublicShortUrls();
 //    List<ShortUrl> findByIsPrivateIsFalseOrderByCreatedAtDesc();
+
     boolean existsByShortKey(String shortKey);
+
+    Optional<ShortUrl> findByShortKey(String shortKey);
 }
