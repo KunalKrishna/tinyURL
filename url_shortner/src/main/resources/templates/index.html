@@ -32,6 +32,18 @@
                          th:errors="*{originalUrl}"></div>
                 </div>
 
+                <div class="mb-3" sec:authorize="isAuthenticated()">
+                    <label for="expirationInDays" class="form-label">Expiration (days)</label>
+                    <input type="number" class="form-control" id="expirationInDays"
+                           th:field="*{expirationInDays}"
+                           min="1" max="365">
+                    <div class="form-text">Leave empty to never expire</div>
+                </div>
+                <div class="mb-3 form-check" sec:authorize="isAuthenticated()">
+                    <input type="checkbox" class="form-check-input" id="isPrivate" th:field="*{isPrivate}">
+                    <label class="form-check-label" for="isPrivate">Private (only you can access)</label>
+                </div>
+
                 <button type="submit" class="btn btn-primary">Shorten URL</button>
             </form>
         </div>
