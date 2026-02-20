@@ -2,6 +2,7 @@ package com.abitmanipulator.url_shortner.web.controller;
 
 import com.abitmanipulator.url_shortner.AppConfigProperties;
 import com.abitmanipulator.url_shortner.domain.Exception.ShortUrlNotFoundException;
+import com.abitmanipulator.url_shortner.domain.entities.User;
 import com.abitmanipulator.url_shortner.domain.models.CreateShortUrlCmd;
 import com.abitmanipulator.url_shortner.domain.models.ShortUrlDto;
 import com.abitmanipulator.url_shortner.services.ShortUrlService;
@@ -25,14 +26,17 @@ public class HomeController {
 
     private final ShortUrlService shortUrlService;
     private final AppConfigProperties properties;
+    private final SecurityUtils securityUtils;
 
-    public HomeController(ShortUrlService shortUrlService, AppConfigProperties properties ) {
+    public HomeController(ShortUrlService shortUrlService, AppConfigProperties properties, SecurityUtils securityUtils) {
         this.shortUrlService = shortUrlService;
         this.properties = properties;
+        this.securityUtils = securityUtils;
     }
 
     @GetMapping("/")
     public String home(Model model) {
+        User currentUser = securityUtils.getCurrentUser();
         List<ShortUrlDto> shortUrls = shortUrlService.findAllPublicShortUrls();
         model.addAttribute("shortUrls", shortUrls);
         model.addAttribute("baseUrl", properties.baseUrl());
@@ -72,6 +76,11 @@ public class HomeController {
         }
         ShortUrlDto shortUrlDto = shortUrlDtoOptional.get();
         return "redirect:"+shortUrlDto.originalUrl();
+    }
+
+    @GetMapping("/login")
+    String loginForm() {
+        return "login";
     }
 
 }

@@ -1,5 +1,6 @@
 package com.abitmanipulator.url_shortner.domain.entities;
 
+import com.abitmanipulator.url_shortner.domain.models.Role;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -28,7 +29,8 @@ public class User {
 
     @ColumnDefault("'ROLE_USER'")
     @Column(name = "role", nullable = false, length = 20)
-    private String role;
+    @Enumerated(EnumType.STRING)
+    private Role role;
 
     @ColumnDefault("CURRENT_TIMESTAMP")
     @Column(name = "created_at", nullable = false)
