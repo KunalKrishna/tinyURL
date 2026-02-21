@@ -38,13 +38,52 @@ public class ShortUrlService {
     }
 
     public PagedResult<ShortUrlDto> findAllPublicShortUrls(int pageNo, int pageSize) {
-        pageNo = (pageNo > 1)? pageNo - 1 : 0;
-        Pageable pageable = PageRequest.of(pageNo, pageSize, Sort.by("createdAt").descending()); // Sort.by(Sort.Direction.DESC, "createdAt");
-        Page<ShortUrl>  shortUrlPage = shortUrlRepository.findAll(pageable);
-
+        Pageable pageable = getPageable(pageNo, pageSize);
         Page<ShortUrlDto> shortUrlDtoPage = shortUrlRepository.findPublicShortUrls(pageable)
                 .map(entityMapper::toShortUrlDto);
+        return PagedResult.from(shortUrlDtoPage);
+    }
 
+    private Pageable getPageable(int pageNo, int pageSize) {
+        pageNo = (pageNo > 1)? pageNo - 1 : 0;
+        return PageRequest.of(pageNo, pageSize, Sort.by("createdAt").descending()); // Sort.by(Sort.Direction.DESC, "createdAt");
+    }
+
+    @Transactional
+    public Optional<ShortUrlDto> accessOriginalUrl(String shortKey, Long userId) {
+        Optional<ShortUrl> shortUrlOpt = shortUrlRepository.findByShortKey(shortKey);
+        if(shortUrlOpt.isEmpty()) {
+            return Optional.empty();
+        }
+        ShortUrl shortUrl = shortUrlOpt.get();
+        if(shortUrl.getExpiresAt() != null && shortUrl.getExpiresAt().isBefore(Instant.now())) {
+            return Optional.empty();
+        }
+        if(shortUrl.getIsPrivate() != null && shortUrl.getCreatedBy() != null && !Objects.equals(shortUrl.getCreatedBy().getId(), userId)) {
+            return Optional.empty();
+        }
+        shortUrl.setClickCount(shortUrl.getClickCount() + 1);
+        shortUrlRepository.save(shortUrl);
+        return shortUrlOpt.map(entityMapper::toShortUrlDto);
+    }
+
+    public PagedResult<ShortUrlDto> getUserShortUrls(Long userId, int pageNo, int pageSize) {
+        Pageable pageable = getPageable(pageNo, pageSize);
+        var shortUrlsPage = shortUrlRepository.findByCreatedById(userId, pageable).map(entityMapper::toShortUrlDto);
+        return PagedResult.from(shortUrlsPage);
+    }
+
+    @Transactional
+    public void deleteUserShortUrls(List<Long> ids, Long userId) {
+        if (ids != null && !ids.isEmpty() && userId != null) {
+            shortUrlRepository.deleteByIdInAndCreatedById(ids, userId);
+        }
+    }
+
+    public PagedResult<ShortUrlDto> findAllShortUrls(int pageNo, int pageSize) {
+        Pageable pageable = getPageable(pageNo, pageSize);
+        Page<ShortUrlDto> shortUrlDtoPage = shortUrlRepository.findAllShortUrls(pageable)
+                .map(entityMapper::toShortUrlDto);
         return PagedResult.from(shortUrlDtoPage);
     }
 
@@ -87,7 +126,6 @@ public class ShortUrlService {
         return shortKey;
     }
 
-
     private static final String CHARACTERS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
     private static final int SHORT_KEY_LENGTH = 6;
     private static final SecureRandom RANDOM = new SecureRandom();
@@ -100,21 +138,5 @@ public class ShortUrlService {
         return sb.toString();
     }
 
-    @Transactional
-    public Optional<ShortUrlDto> accessOriginalUrl(String shortKey, Long userId) {
-        Optional<ShortUrl> shortUrlOpt = shortUrlRepository.findByShortKey(shortKey);
-        if(shortUrlOpt.isEmpty()) {
-            return Optional.empty();
-        }
-        ShortUrl shortUrl = shortUrlOpt.get();
-        if(shortUrl.getExpiresAt() != null && shortUrl.getExpiresAt().isBefore(Instant.now())) {
-            return Optional.empty();
-        }
-        if(shortUrl.getIsPrivate() != null && shortUrl.getCreatedBy() != null && !Objects.equals(shortUrl.getCreatedBy().getId(), userId)) {
-            return Optional.empty();
-        }
-        shortUrl.setClickCount(shortUrl.getClickCount() + 1);
-        shortUrlRepository.save(shortUrl);
-        return shortUrlOpt.map(entityMapper::toShortUrlDto);
-    }
+
 }

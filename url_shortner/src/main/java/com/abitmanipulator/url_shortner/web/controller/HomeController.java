@@ -8,12 +8,14 @@ import com.abitmanipulator.url_shortner.domain.models.ShortUrlDto;
 import com.abitmanipulator.url_shortner.services.ShortUrlService;
 import com.abitmanipulator.url_shortner.web.controller.dtos.CreateShortUrlForm;
 import jakarta.validation.Valid;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import java.util.List;
 import java.util.Optional;
 
 @Controller
@@ -46,6 +48,7 @@ public class HomeController {
         PagedResult<ShortUrlDto> shortUrls = shortUrlService.findAllPublicShortUrls(pageNo, properties.pageSize());
         model.addAttribute("shortUrls", shortUrls);
         model.addAttribute("baseUrl", properties.baseUrl());
+        model.addAttribute("paginationUrl", "/my-urls");
     }
 
     @PostMapping("/short-urls")
@@ -58,7 +61,7 @@ public class HomeController {
             fetchAndAddShortUrlsDataToModel(model, 1);
             return "index";
         }
-        //TODO : implement logic
+
         try {
             Long userId = securityUtils.getCurrentUserId();
             CreateShortUrlCmd cmd = new CreateShortUrlCmd(
@@ -92,4 +95,39 @@ public class HomeController {
         return "login";
     }
 
+    @GetMapping("/my-urls")
+    @PreAuthorize("isAuthenticated()")
+    public String showUserUrls(
+            @RequestParam(defaultValue = "1") int page,
+            Model model) {
+        var currentUserId = securityUtils.getCurrentUserId();
+        PagedResult<ShortUrlDto> myUrls =
+                shortUrlService.getUserShortUrls(currentUserId, page, properties.pageSize());
+        model.addAttribute("shortUrls", myUrls);
+        model.addAttribute("baseUrl", properties.baseUrl());
+        model.addAttribute("paginationUrl", "/my-urls");
+        return "my-urls";
+    }
+
+    @PostMapping("/delete-urls")
+    @PreAuthorize("hasAnyRole('USER', 'MODERATOR')")
+    public String deleteUrls(
+            @RequestParam(value = "ids", required = false) List<Long> ids,
+            RedirectAttributes redirectAttributes) {
+        if (ids == null || ids.isEmpty()) {
+            redirectAttributes.addFlashAttribute(
+                    "errorMessage", "No URLs selected for deletion");
+            return "redirect:/my-urls";
+        }
+        try {
+            var currentUserId = securityUtils.getCurrentUserId();
+            shortUrlService.deleteUserShortUrls(ids, currentUserId);
+            redirectAttributes.addFlashAttribute("successMessage",
+                    "Selected URLs have been deleted successfully");
+        } catch (Exception e) {
+            redirectAttributes.addFlashAttribute("errorMessage",
+                    "Error deleting URLs: " + e.getMessage());
+        }
+        return "redirect:/my-urls";
+    }
 }

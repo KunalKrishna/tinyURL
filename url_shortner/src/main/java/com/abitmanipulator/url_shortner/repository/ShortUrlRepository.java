@@ -1,11 +1,13 @@
 package com.abitmanipulator.url_shortner.repository;
 
 
+import aj.org.objectweb.asm.commons.Remapper;
 import com.abitmanipulator.url_shortner.domain.entities.ShortUrl;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
@@ -37,4 +39,12 @@ public interface ShortUrlRepository extends JpaRepository<ShortUrl, Long> {
     boolean existsByShortKey(String shortKey);
 
     Optional<ShortUrl> findByShortKey(String shortKey);
+
+    Page<ShortUrl> findByCreatedById(Long userId, Pageable pageable);
+
+    @Modifying
+    void deleteByIdInAndCreatedById(List<Long> ids, Long userId);
+
+    @Query("select u from ShortUrl u left join fetch u.createdBy")
+    Page<ShortUrl> findAllShortUrls(Pageable pageable);
 }
