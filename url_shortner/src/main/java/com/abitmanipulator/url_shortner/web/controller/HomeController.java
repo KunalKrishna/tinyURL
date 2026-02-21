@@ -2,7 +2,6 @@ package com.abitmanipulator.url_shortner.web.controller;
 
 import com.abitmanipulator.url_shortner.AppConfigProperties;
 import com.abitmanipulator.url_shortner.domain.Exception.ShortUrlNotFoundException;
-import com.abitmanipulator.url_shortner.domain.entities.User;
 import com.abitmanipulator.url_shortner.domain.models.CreateShortUrlCmd;
 import com.abitmanipulator.url_shortner.domain.models.PagedResult;
 import com.abitmanipulator.url_shortner.domain.models.ShortUrlDto;
@@ -15,8 +14,6 @@ import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
-import javax.swing.text.html.Option;
-import java.util.List;
 import java.util.Optional;
 
 @Controller
@@ -32,16 +29,23 @@ public class HomeController {
         this.securityUtils = securityUtils;
     }
 
+    // GET /?page=1&size=10&sort=createdAt,desc
     @GetMapping("/")
     public String home(
             @RequestParam(defaultValue = "1")
                     Integer page,
+//            @PageableDefault(page = 1, size = 10)
+//            Pageable pageable,
             Model model) {
-        PagedResult<ShortUrlDto> shortUrls = shortUrlService.findAllPublicShortUrls(page, properties.pageSize());
-        model.addAttribute("shortUrls", shortUrls);
-        model.addAttribute("baseUrl", properties.baseUrl());
+        fetchAndAddShortUrlsDataToModel(model, page);
         model.addAttribute("createShortUrlForm", new CreateShortUrlForm("", null,false));
         return "index";
+    }
+
+    private void fetchAndAddShortUrlsDataToModel(Model model, int pageNo) {
+        PagedResult<ShortUrlDto> shortUrls = shortUrlService.findAllPublicShortUrls(pageNo, properties.pageSize());
+        model.addAttribute("shortUrls", shortUrls);
+        model.addAttribute("baseUrl", properties.baseUrl());
     }
 
     @PostMapping("/short-urls")
@@ -51,9 +55,7 @@ public class HomeController {
                           RedirectAttributes redirectAttributes,
                           Model model) {
         if(bindingResult.hasErrors()) {
-            PagedResult<ShortUrlDto> shortUrls = shortUrlService.findAllPublicShortUrls(1, properties.pageSize());
-            model.addAttribute("shortUrls", shortUrls);
-            model.addAttribute("baseUrl", properties.baseUrl());
+            fetchAndAddShortUrlsDataToModel(model, 1);
             return "index";
         }
         //TODO : implement logic
