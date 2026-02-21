@@ -50,10 +50,10 @@
     </div>
 
     <h2 class="mt-5">Public Shortened URLs</h2>
-    <div th:if="${shortUrls.isEmpty()}" class="alert alert-info">
+    <div th:if="${shortUrls.data.isEmpty()}" class="alert alert-info">
         No public URLs have been created yet.
     </div>
-    <div th:unless="${shortUrls.isEmpty()}" class="table-responsive">
+    <div th:unless="${shortUrls.data.isEmpty()}" class="table-responsive">
         <table class="table table-striped table-hover">
             <thead>
             <tr>
@@ -65,7 +65,7 @@
             </tr>
             </thead>
             <tbody>
-            <tr th:each="url : ${shortUrls}">
+            <tr th:each="url : ${shortUrls.data}">
                 <td>
                     <a th:href="@{/s/{key}(key=${url.shortKey})}" th:text="${baseUrl + '/s/' + url.shortKey}" target="_blank"></a>
                 </td>
@@ -78,6 +78,37 @@
             </tr>
             </tbody>
         </table>
+
+        <nav th:if="${shortUrls.totalPages > 1}">
+            <ul class="pagination justify-content-center">
+                <li class="page-item" th:classappend="${shortUrls.isFirst ? 'disabled' : ''}">
+                    <a class="page-link" th:href="@{/(page=1)}" aria-label="First">
+                        <span aria-hidden="true">First</span>
+                    </a>
+                </li>
+                <li class="page-item" th:classappend="${shortUrls.isFirst ? 'disabled' : ''}">
+                    <a class="page-link" th:href="@{/(page=${shortUrls.pageNumber - 1})}" aria-label="Previous">
+                        <span aria-hidden="true">Previous</span>
+                    </a>
+                </li>
+                <li class="page-item disabled">
+                        <span class="page-link" aria-label="Current Page Number of Total Pages"
+                              th:text="${'Page '+shortUrls.pageNumber + ' of ' + shortUrls.totalPages + ' (Total: ' + shortUrls.totalElements+')'}">
+                           Page 1 of 10 (Total: 200)
+                        </span>
+                </li>
+                <li class="page-item" th:classappend="${shortUrls.isLast ? 'disabled' : ''}">
+                    <a class="page-link" th:href="@{/(page=${shortUrls.pageNumber + 1})}" aria-label="Next">
+                        <span aria-hidden="true">Next</span>
+                    </a>
+                </li>
+                <li class="page-item" th:classappend="${shortUrls.isLast ? 'disabled' : ''}">
+                    <a class="page-link" th:href="@{/(page=${shortUrls.totalPages})}" aria-label="Last">
+                        <span aria-hidden="true">Last</span>
+                    </a>
+                </li>
+            </ul>
+        </nav>
 
     </div>
 

@@ -3,9 +3,14 @@ package com.abitmanipulator.url_shortner.services;
 import com.abitmanipulator.url_shortner.AppConfigProperties;
 import com.abitmanipulator.url_shortner.domain.entities.ShortUrl;
 import com.abitmanipulator.url_shortner.domain.models.CreateShortUrlCmd;
+import com.abitmanipulator.url_shortner.domain.models.PagedResult;
 import com.abitmanipulator.url_shortner.domain.models.ShortUrlDto;
 import com.abitmanipulator.url_shortner.repository.ShortUrlRepository;
 import com.abitmanipulator.url_shortner.repository.UserRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,9 +37,15 @@ public class ShortUrlService {
         this.userRepository = userRepository;
     }
 
-    public List<ShortUrlDto> findAllPublicShortUrls() {
-        return shortUrlRepository.findPublicShortUrls()
-                .stream().map(entityMapper::toShortUrlDto).collect(Collectors.toList());
+    public PagedResult<ShortUrlDto> findAllPublicShortUrls(int pageNo, int pageSize) {
+        pageNo = (pageNo > 1)? pageNo - 1 : 0;
+        Pageable pageable = PageRequest.of(pageNo, pageSize, Sort.by("createdAt").descending()); // Sort.by(Sort.Direction.DESC, "createdAt");
+        Page<ShortUrl>  shortUrlPage = shortUrlRepository.findAll(pageable);
+
+        Page<ShortUrlDto> shortUrlDtoPage = shortUrlRepository.findPublicShortUrls(pageable)
+                .map(entityMapper::toShortUrlDto);
+
+        return PagedResult.from(shortUrlDtoPage);
     }
 
     @Transactional
