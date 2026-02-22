@@ -446,3 +446,31 @@ Ans : Risk of duplicate processing of POST requests(if user ends up refreshing t
 addFlashAttribute() follows **Post/Redirect/Get** (PRG) pattern for form submission.
 Read more : https://www.baeldung.com/spring-web-flash-attributes
 
+
+
+# Dockerizing Spring Boot app
+
+-------------------------------------------------------------------------
+Stage 1. Build spring boot JAR (with dummy datasource properties)
+-------------------------------------------------------------------------
+Have the app as it was in part 11 (but fix minor bug 5:28)
+1.a DB configured to run in docker container port 5432
+1.b. application.properties pointing datasource on docker db i.e. localhost:5432/DB (without this `mvn spring-boot:build-image` will give error related to `dataSource`)
+1.c mvn spring-boot:build-image <dockerImageName>
+
+This creates jar in target/spring-boot-url-shortener-0.0.1-SNAPSHOT.jar
+
+-------------------------------------------------------------------------
+Stage 2. running this jar along with DB service
+-------------------------------------------------------------------------
+running a DB service in one container + running a spring boot jar in another container with datasource pointing to DB service
+2.a create compose.yaml in directory 'docker'
+2.b make sure to name spring boot image name as : <dockerImageName>  in compose.yaml
+2.c this springboot image point to real datasource properties (through env variable)
+2.d terminate all docker container b4 running next cmd
+2.e in the docker/ run docker compose up -d -> this runs two docker container
+2.f http://localhost:8080/ should be running.
+
+NOTE: If in 2b you directly provide spring.datasource.url= jdbc:postgresql://postgres:5432/postgresDB before creating spring boot image then you dont need to add env_variable in 2.c as it is already pointing to right src.
+
+in other words, you need point correct dataSrc only if u want to run as u did till part 11. But since your jar will eventually look up to db running on postgres:5432/DB you can either add this in prop while building the jar itself or wait to overwrite using env variable in compose.yaml file. 

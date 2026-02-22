@@ -40,7 +40,8 @@ public class HomeController {
 //            Pageable pageable,
             Model model) {
         fetchAndAddShortUrlsDataToModel(model, page);
-        model.addAttribute("createShortUrlForm", new CreateShortUrlForm("", null,false));
+        model.addAttribute("createShortUrlForm",
+                new CreateShortUrlForm("", null,false));
         return "index";
     }
 
@@ -48,7 +49,7 @@ public class HomeController {
         PagedResult<ShortUrlDto> shortUrls = shortUrlService.findAllPublicShortUrls(pageNo, properties.pageSize());
         model.addAttribute("shortUrls", shortUrls);
         model.addAttribute("baseUrl", properties.baseUrl());
-        model.addAttribute("paginationUrl", "/my-urls");
+        model.addAttribute("paginationUrl", "/");
     }
 
     @PostMapping("/short-urls")
