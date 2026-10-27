@@ -5,25 +5,21 @@ services:
       POSTGRES_DB: postgresDB #<-- THIS creates the DB automatically
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-#      - 'POSTGRES_DB=postgres'
-#      - 'POSTGRES_USER=postgres'
-#      - 'POSTGRES_PASSWORD=postgres'
     ports:
       - '5432:5432'
 
-
-#services:
-#  postgres:
-#    image: pgvector/pgvector:pg16
-#    container_name: heelp-ai-postgres
-#    ports:
-#      - "5432:5432"
-#    environment:
-#      POSTGRES_DB: rag_db #<-- THIS creates the DB automatically
-#      POSTGRES_USER: postgres
-#      POSTGRES_PASSWORD: password
-#    volumes:
-#      - postgres_data:/var/lib/postgresql/data
-#
-#volumes:
-#  postgres_data:
+  # Only started with `docker compose --profile app up`;
+  # `./mvnw spring-boot:run` (spring-boot-docker-compose) starts just postgres.
+  spring-boot-url-shortener:
+    image: kunalkrishna/spring-boot-url-shortener
+    container_name: spring-boot-url-shortener
+    profiles: ["app"]
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/postgresDB
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+    depends_on:
+      - postgres

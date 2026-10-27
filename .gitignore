@@ -1,0 +1,4 @@
+# Only url_shortner/ is tracked; ignore everything else at the repo root
+/*
+!/.gitignore
+!/url_shortner/
