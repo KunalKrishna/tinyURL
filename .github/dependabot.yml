@@ -1,0 +1,20 @@
+version: 2
+updates:
+  # uses: lines in .github/workflows/*.yml
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:            # one PR for all action bumps
+        patterns: ["*"]
+
+  # pom.xml lives in the url_shortner/ sub-folder, not the repo root
+  - package-ecosystem: maven
+    directory: /url_shortner
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      maven-minor-and-patch:   # majors (e.g. Spring Boot 4) still get their own PR
+        update-types: [minor, patch]
