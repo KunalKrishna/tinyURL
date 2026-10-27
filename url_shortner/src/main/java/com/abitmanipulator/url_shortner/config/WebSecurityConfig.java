@@ -24,7 +24,8 @@ public class WebSecurityConfig {
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers(
                                 "/error", "/webjars/**", "/css/**", "/js/**", "/images/**",
-                                "/", "/short-urls", "/s/**", "/register", "/login"
+                                "/", "/short-urls", "/s/**", "/register", "/login",
+                                "/actuator/health", "/actuator/health/**" // platform health checks
                         ).permitAll()
 //                        .requestMatchers("/my-urls").authenticated()
 //                        .requestMatchers("/admin/**").hasRole("ADMIN")

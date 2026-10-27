@@ -1,4 +1,4 @@
-_Last Updated: 2026-10-26_
+_Last Updated: 2026-10-27_
 
 # TinyURL
 ## A project to learn System Design
@@ -57,6 +57,8 @@ Sample accounts seeded by Flyway:
 | `app.validate-original-url` | `true` | Check the original URL is reachable |
 | `app.page-size` | `10` | Page size for paginated lists |
 
+Tests need Docker running (Testcontainers starts a Postgres container): `./mvnw verify`.
+
 ## Usage
 | Endpoint | Access | Description |
 |---|---|---|
@@ -70,9 +72,113 @@ Sample accounts seeded by Flyway:
 | `GET /admin/dashboard?page=1` | ADMIN | All short URLs |
 
 ## Deployment (Docker)
-Build an OCI image with Cloud Native Buildpacks (image name `kunalkrishna/spring-boot-url-shortener`), then run the app and PostgreSQL together:
-```bash
-./mvnw spring-boot:build-image
-docker compose --profile app up -d
+
+### TL;DR — command order
+Docker must be running for every step.
+
+| # | Command | What it does | Needs |
+|---|---|---|---|
+| 1 | `./mvnw spring-boot:build-image` | Compiles, runs tests, packages the jar, then builds a Docker image `kunalkrishna/spring-boot-url-shortener:latest` | JDK 25, Docker |
+| 2 | `docker compose --profile app up -d` | Starts the `postgres` container, then the app container from the image built in step 1 | Image from step 1 |
+| 3 | open http://localhost:8080 | App is served from the container | |
+| – | `docker compose --profile app logs -f spring-boot-url-shortener` | Follow app logs | |
+| – | `docker compose --profile app down` | Stop & remove both containers (add `-v` to also drop DB data) | |
+
+Re-run steps 1 → 2 after every code change: the container runs the **image**, not your source code.
+
+> Local development is different: `./mvnw spring-boot:run` runs the app **on your machine (JVM)** and only starts Postgres in Docker. No image is built.
+
+### How `pom.xml` and `compose.yaml` are chained together
+
+```mermaid
+flowchart LR
+    subgraph pom.xml
+        A["artifactId<br/>spring-boot-url-shortener"] --> B["property dockerImageName<br/>kunalkrishna/${project.artifactId}"]
+        B --> C["spring-boot-maven-plugin<br/>&lt;image&gt;&lt;name&gt;"]
+    end
+    C -- "./mvnw spring-boot:build-image" --> D[("Docker image<br/>kunalkrishna/spring-boot-url-shortener:latest")]
+    subgraph compose.yaml
+        E["service spring-boot-url-shortener<br/>image: kunalkrishna/spring-boot-url-shortener<br/>profiles: [app]"]
+        F["service postgres<br/>postgres:17"]
+    end
+    D -- "same name = the link" --> E
+    E -- "SPRING_DATASOURCE_URL<br/>jdbc:postgresql://postgres:5432/postgresDB" --> F
 ```
-A single `compose.yaml` at the project root is used for both cases: without a profile (and via `spring-boot:run`) only PostgreSQL starts; the `app` profile adds the app container. Its datasource is set via the `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME` and `SPRING_DATASOURCE_PASSWORD` environment variables in `compose.yaml`.
+
+**1. `pom.xml` names the image.**
+```xml
+<artifactId>spring-boot-url-shortener</artifactId>
+<properties>
+    <dockerImageName>kunalkrishna/${project.artifactId}</dockerImageName>   <!-- = kunalkrishna/spring-boot-url-shortener -->
+</properties>
+...
+<plugin>
+    <artifactId>spring-boot-maven-plugin</artifactId>
+    <configuration>
+        <image><name>${dockerImageName}</name></image>   <!-- no tag given → :latest -->
+    </configuration>
+</plugin>
+```
+`kunalkrishna/` is a Docker Hub namespace; it only matters once you push the image to Docker Hub.
+
+**2. `spring-boot:build-image` builds the image — there is no Dockerfile.**
+The `spring-boot-maven-plugin` runs the normal Maven lifecycle up to `package` (compile → test → fat jar), then hands the jar to
+[Cloud Native Buildpacks (Paketo)](https://paketo.io/), which run inside Docker and produce an optimized, layered image containing a JRE 25 and your app.
+Dev-only dependencies (`spring-boot-devtools`, `spring-boot-docker-compose`) are left out of that jar automatically.
+
+**3. `compose.yaml` uses the image by name.** The only link between the two files is the string `kunalkrishna/spring-boot-url-shortener`.
+Compose looks for that image locally first; if it isn't there it tries to pull it from Docker Hub.
+
+**4. Configuration is overridden by environment variables.** `application.properties` says `spring.datasource.url=jdbc:postgresql://localhost:5432/...`,
+but inside a container `localhost` is the container itself. Compose sets `SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/postgresDB`
+(`postgres` = the service name on the Compose network). Spring Boot maps `SPRING_DATASOURCE_URL` → `spring.datasource.url`, and env vars win over the properties file.
+This is the same mechanism every cloud host uses to configure the app.
+
+**5. On startup** the app connects to Postgres, Flyway applies `db/migration/V*.sql`, then Tomcat listens on 8080, which Compose publishes as `localhost:8080`.
+
+### What each `compose.yaml` is used for
+| Scenario | Command | Starts |
+|---|---|---|
+| Local dev | `./mvnw spring-boot:run` | `postgres` only (via `spring-boot-docker-compose`; `app` profile not active) |
+| Full stack in Docker | `docker compose --profile app up -d` | `postgres` + app container |
+
+### Roadmap: CI/CD with GitHub Actions → EC2 / Railway / Render
+The local flow above maps directly onto a pipeline — the only new pieces are a **container registry** and **secrets**:
+
+```
+git push ──► GitHub Actions
+               1. checkout + setup JDK 25
+               2. ./mvnw spring-boot:build-image  (tag with git SHA, e.g. -Dspring-boot.build-image.imageName=…:${{ github.sha }})
+               3. docker login + docker push ──► registry (Docker Hub / GHCR / Amazon ECR)
+               4. deploy ──► target pulls the image and runs it with env vars
+```
+
+| Target | How step 4 works | Database | Notes |
+|---|---|---|---|
+| **AWS EC2** | Action SSHes into the instance, copies `compose.yaml`, runs `docker compose --profile app pull && docker compose --profile app up -d` | Postgres container from `compose.yaml`, or Amazon RDS (just change `SPRING_DATASOURCE_URL`) | Closest to local setup; you manage the VM. Graviton (arm64) instances need an arm64 image. |
+| **Render** | "Deploy an existing image" web service pointing at the registry; trigger via deploy hook URL from the Action | Render Postgres | No Compose; set env vars in the dashboard. Render injects `PORT`. |
+| **Railway** | Service from a Docker image (or let Railway build from the repo) | Railway Postgres plugin | No Compose; env vars in dashboard. Railway injects `PORT`. |
+
+### CI pipeline (`.github/workflows/ci.yml`, at the repo root)
+| Trigger | Steps |
+|---|---|
+| Pull request → `main` | `./mvnw verify` (compile + tests; tests start a throwaway Postgres via Testcontainers) |
+| Push → `main` | the above, then `spring-boot:build-image` → push `kunalkrishna/spring-boot-url-shortener:<git-sha>` and `:latest` to Docker Hub |
+
+**One-time setup:** in GitHub → *Settings → Secrets and variables → Actions*, add `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN`
+(a Docker Hub access token with *Read & Write*).
+
+### Cloud-ready configuration
+Everything environment-specific is an env var; `application.properties` only holds local-dev defaults.
+
+| Env var | Purpose | Default |
+|---|---|---|
+| `SPRING_DATASOURCE_URL` | JDBC URL — must be `jdbc:postgresql://host:5432/db`, **not** the `postgres://…` URL managed hosts show | `jdbc:postgresql://localhost:5432/postgresDB` |
+| `SPRING_DATASOURCE_USERNAME` / `SPRING_DATASOURCE_PASSWORD` | DB credentials | `postgres` / `postgres` |
+| `APP_BASE_URL` | Public URL used in generated short links | `http://localhost:8080` |
+| `PORT` | HTTP port (`server.port=${PORT:8080}`); set automatically by Render/Railway | `8080` |
+
+- Health check path for Render/Railway/load balancers: `/actuator/health` (also `/actuator/health/liveness` and `/readiness`), public, no login.
+- **EC2 / any Compose host:** copy `compose.yaml` and `.env.example` → `.env`, set real values, then
+  `docker compose --profile app pull && docker compose --profile app up -d`. Pin a release with `IMAGE_TAG=<git-sha>`.
+- Postgres data now lives in the `postgres_data` volume and survives `down`; `POSTGRES_*` values only apply when that volume is first created (`down -v` to reset).

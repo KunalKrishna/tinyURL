@@ -4,11 +4,8 @@ target/
 !**/src/main/**/target/
 !**/src/test/**/target/
 
-.gitattributes
-.mvn/
-mvnw
-mvnw.cmd
-src/test/
+### Local secrets (see .env.example) ###
+.env
 
 ### STS ###
 .apt_generated
