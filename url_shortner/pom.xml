@@ -28,7 +28,7 @@
 	</scm>
 	<properties>
 		<java.version>25</java.version>
-        <dockerImageName>kunalkrishna/${project.artifactId}</dockerImageName>
+        <dockerImageName>kunalkrishna85/${project.artifactId}</dockerImageName>
 	</properties>
 	<dependencies>
 <!--        DEV TOOLS-->

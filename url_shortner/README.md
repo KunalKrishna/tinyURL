@@ -78,7 +78,7 @@ Docker must be running for every step.
 
 | # | Command | What it does | Needs |
 |---|---|---|---|
-| 1 | `./mvnw spring-boot:build-image` | Compiles, runs tests, packages the jar, then builds a Docker image `kunalkrishna/spring-boot-url-shortener:latest` | JDK 25, Docker |
+| 1 | `./mvnw spring-boot:build-image` | Compiles, runs tests, packages the jar, then builds a Docker image `kunalkrishna85/spring-boot-url-shortener:latest` | JDK 25, Docker |
 | 2 | `docker compose --profile app up -d` | Starts the `postgres` container, then the app container from the image built in step 1 | Image from step 1 |
 | 3 | open http://localhost:8080 | App is served from the container | |
 | – | `docker compose --profile app logs -f spring-boot-url-shortener` | Follow app logs | |
@@ -93,12 +93,12 @@ Re-run steps 1 → 2 after every code change: the container runs the **image**, 
 ```mermaid
 flowchart LR
     subgraph pom.xml
-        A["artifactId<br/>spring-boot-url-shortener"] --> B["property dockerImageName<br/>kunalkrishna/${project.artifactId}"]
+        A["artifactId<br/>spring-boot-url-shortener"] --> B["property dockerImageName<br/>kunalkrishna85/${project.artifactId}"]
         B --> C["spring-boot-maven-plugin<br/>&lt;image&gt;&lt;name&gt;"]
     end
-    C -- "./mvnw spring-boot:build-image" --> D[("Docker image<br/>kunalkrishna/spring-boot-url-shortener:latest")]
+    C -- "./mvnw spring-boot:build-image" --> D[("Docker image<br/>kunalkrishna85/spring-boot-url-shortener:latest")]
     subgraph compose.yaml
-        E["service spring-boot-url-shortener<br/>image: kunalkrishna/spring-boot-url-shortener<br/>profiles: [app]"]
+        E["service spring-boot-url-shortener<br/>image: kunalkrishna85/spring-boot-url-shortener<br/>profiles: [app]"]
         F["service postgres<br/>postgres:17"]
     end
     D -- "same name = the link" --> E
@@ -109,7 +109,7 @@ flowchart LR
 ```xml
 <artifactId>spring-boot-url-shortener</artifactId>
 <properties>
-    <dockerImageName>kunalkrishna/${project.artifactId}</dockerImageName>   <!-- = kunalkrishna/spring-boot-url-shortener -->
+    <dockerImageName>kunalkrishna85/${project.artifactId}</dockerImageName>   <!-- = kunalkrishna85/spring-boot-url-shortener -->
 </properties>
 ...
 <plugin>
@@ -119,14 +119,14 @@ flowchart LR
     </configuration>
 </plugin>
 ```
-`kunalkrishna/` is a Docker Hub namespace; it only matters once you push the image to Docker Hub.
+`kunalkrishna85/` is a Docker Hub namespace; it only matters once you push the image to Docker Hub.
 
 **2. `spring-boot:build-image` builds the image — there is no Dockerfile.**
 The `spring-boot-maven-plugin` runs the normal Maven lifecycle up to `package` (compile → test → fat jar), then hands the jar to
 [Cloud Native Buildpacks (Paketo)](https://paketo.io/), which run inside Docker and produce an optimized, layered image containing a JRE 25 and your app.
 Dev-only dependencies (`spring-boot-devtools`, `spring-boot-docker-compose`) are left out of that jar automatically.
 
-**3. `compose.yaml` uses the image by name.** The only link between the two files is the string `kunalkrishna/spring-boot-url-shortener`.
+**3. `compose.yaml` uses the image by name.** The only link between the two files is the string `kunalkrishna85/spring-boot-url-shortener`.
 Compose looks for that image locally first; if it isn't there it tries to pull it from Docker Hub.
 
 **4. Configuration is overridden by environment variables.** `application.properties` says `spring.datasource.url=jdbc:postgresql://localhost:5432/...`,
@@ -163,7 +163,7 @@ git push ──► GitHub Actions
 | Trigger | Steps |
 |---|---|
 | Pull request → `main` | `./mvnw verify` (compile + tests; tests start a throwaway Postgres via Testcontainers) |
-| Push → `main` | the above, then `spring-boot:build-image` → push `kunalkrishna/spring-boot-url-shortener:<git-sha>` and `:latest` to Docker Hub |
+| Push → `main` | the above, then `spring-boot:build-image` → push `kunalkrishna85/spring-boot-url-shortener:<git-sha>` and `:latest` to Docker Hub |
 
 **One-time setup:** in GitHub → *Settings → Secrets and variables → Actions*, add `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN`
 (a Docker Hub access token with *Read & Write*).

@@ -24,7 +24,7 @@ services:
 
   # The Spring Boot Application
   spring-boot-url-shortener:
-    image: kunalkrishna/spring-boot-url-shortener:${IMAGE_TAG:-latest}
+    image: kunalkrishna85/spring-boot-url-shortener:${IMAGE_TAG:-latest}
     container_name: spring-boot-url-shortener
     profiles: ["app"]
     environment: # Injects runtime database credentials into application.properties

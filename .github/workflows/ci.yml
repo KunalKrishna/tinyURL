@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 env:
-  IMAGE_NAME: kunalkrishna/spring-boot-url-shortener
+  IMAGE_NAME: kunalkrishna85/spring-boot-url-shortener
 
 defaults:
   run:
