@@ -108,7 +108,7 @@ Postgres data survives every rebuild because it lives in the `postgres_data` vol
 
 ### One-time EC2 setup
 1. **Launch** Ubuntu 24.04, `t3.small` (2 GB; the Maven build runs on the instance and needs RAM — on `t3.micro` add swap).
-   Security group: **22** from your IP (and from GitHub Actions for the SSH deploy), **8080** from anywhere. Do **not** open 5432.
+   Security group: **22** from your IP (and from GitHub Actions for the SSH deploy), **8080** from anywhere. Do **not** open 5432 (compose also binds Postgres to `127.0.0.1` only).
    Attach an **Elastic IP** so the address (and `APP_BASE_URL`) never changes.
 2. **Install Docker + Git:**
    ```bash
@@ -154,5 +154,4 @@ Everything environment-specific is an env var; `application.properties` only hol
 | `PORT` | HTTP port (`server.port=${PORT:8080}`) | `8080` |
 
 Health check: `/actuator/health` (also `/liveness` and `/readiness`), public, no login.
-`IMAGE_TAG` in `.env.example` is no longer used (the image is built, not pulled).
 

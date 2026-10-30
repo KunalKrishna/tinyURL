@@ -1,0 +1,10 @@
+# Keep the build context small: the Dockerfile only needs pom.xml and src/
+.git
+.github
+.idea
+.claude
+.mvn
+target
+*.iml
+# never bake local secrets into an image layer
+.env
