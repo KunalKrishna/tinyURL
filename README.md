@@ -75,6 +75,8 @@ Tests need Docker running (Testcontainers starts a Postgres container): `./mvnw 
 
 ## Deployment: build on EC2
 
+**Status:** live on EC2. Every push to `main` is tested and then deployed automatically.
+
 The Docker image is **built on the EC2 instance itself** from the `Dockerfile` — no image registry (Docker Hub) is involved.
 GitHub Actions only runs the tests and then tells EC2 (over SSH) to pull the latest code and rebuild.
 
@@ -95,16 +97,28 @@ flowchart LR
 | `Dockerfile` | Multi-stage build. Stage 1 (`maven:3.9-eclipse-temurin-25`) downloads dependencies, then `mvn package` builds the fat jar; stage 2 (`eclipse-temurin:25-jre-alpine`) runs it with `java -jar /app/app.jar` |
 | `pom.xml` → `spring-boot-maven-plugin` | Repackages `target/*.jar` into the executable fat jar the Dockerfile copies (also provides `spring-boot:run`) |
 | `compose.yaml` | Project `name: url_shortner` (pinned so volumes/containers keep their names regardless of folder) · `postgres` (official `postgres:17` image, data in the `postgres_data` volume) + `spring-boot-url-shortener` (`build: .` from the `Dockerfile`, container name `shortener-app`, port 8080, `profiles: ["app"]` → only started when named or with `--profile app`) |
+| `.dockerignore` | Keeps `.git`, `target/`, IDE folders and `.env` out of the build context (secrets never end up in an image layer) |
 | `.env` (on the server, git-ignored) | Secrets and environment-specific values read by `compose.yaml` |
 
 **Order of commands on EC2** (run by the workflow, or by hand):
 ```bash
+# first deploy only: the workflow clones the repo into ~/spring-boot-url-shortener if it is not there
 cd ~/spring-boot-url-shortener && git fetch origin main && git reset --hard origin/main
+# the workflow stops here (job fails) if .env is missing, instead of starting with fallback credentials
 docker compose up --build -d spring-boot-url-shortener   # builds the image, starts postgres first (healthcheck), then the app
-docker image prune -f                                     # remove old dangling image layers
+docker image prune -f                                     # remove the untagged image left by the rebuild
 ```
-`--build` rebuilds the image from the new source; Docker's layer cache keeps unchanged steps (e.g. dependency download) fast.
 Postgres data survives every rebuild because it lives in the `postgres_data` volume.
+
+**What a deploy downloads:** only what changed.
+
+| Step | Downloaded on each push |
+|---|---|
+| `git fetch` | Only the changed git objects (compressed) |
+| Base images (`maven:3.9-eclipse-temurin-25`, `eclipse-temurin:25-jre-alpine`) | Nothing after the first deploy (`--build` does not re-pull) |
+| Maven dependencies | Nothing while `pom.xml` is unchanged: the `COPY pom.xml` → `mvn dependency:go-offline` layer is cached, and only `COPY src` → `mvn package` re-runs |
+
+Any change to `pom.xml` (e.g. a version bump) re-downloads **all** dependencies once. `docker image prune -f` does not clear the build cache (only `docker builder prune` does).
 
 ### One-time EC2 setup
 1. **Launch** Ubuntu 24.04, `t3.small` (2 GB; the Maven build runs on the instance and needs RAM — on `t3.micro` add swap).
@@ -129,14 +143,16 @@ Postgres data survives every rebuild because it lives in the `postgres_data` vol
    APP_BASE_URL=http://<elastic-ip>:8080        # public URL shown in short links
    ```
    `git reset --hard` on later deploys does not touch `.env`, because it is git-ignored.
-4. **First start:** `docker compose up --build -d spring-boot-url-shortener` (naming the service activates its `app` profile and starts `postgres` first), then `curl -s localhost:8080/actuator/health` → `{"status":"UP"}`.
-5. **GitHub secrets** (*Settings → Secrets and variables → Actions*):
+4. **GitHub secrets** (*Settings → Secrets and variables → Actions*):
 
    | Secret | Value |
    |---|---|
    | `EC2_HOST` | Elastic IP or DNS name of the instance |
    | `EC2_USERNAME` | `ubuntu` |
    | `EC2_SSH_KEY` | Contents of the instance's private key (`.pem`) |
+5. **First deploy:** push to `main`, or re-run the last failed deploy without a new commit: `gh run rerun <run-id> --failed`.
+   The first build downloads the base images and all dependencies, so it takes a few minutes.
+   Check: `curl -s http://<elastic-ip>:8080/actuator/health` → `{"status":"UP"}`.
 
 ### `APP_BASE_URL`
 Only the **server's** `.env` needs the public URL; your local `.env` keeps `http://localhost:8080`.
@@ -154,4 +170,13 @@ Everything environment-specific is an env var; `application.properties` only hol
 | `PORT` | HTTP port (`server.port=${PORT:8080}`) | `8080` |
 
 Health check: `/actuator/health` (also `/liveness` and `/readiness`), public, no login.
+
+### Troubleshooting
+| Symptom | Cause / fix |
+|---|---|
+| Deploy log: `docker: command not found` | Docker is not installed on EC2 (setup step 2) |
+| Deploy log: `Missing …/.env` | Create the server `.env` (setup step 3), then re-run the deploy |
+| Short links show `http://localhost:8080/...` | `APP_BASE_URL` is not set in the server `.env`. After editing `.env`, re-run the deploy (or `docker compose up -d spring-boot-url-shortener`): the container must be **recreated**, `docker restart` keeps the old environment |
+| `docker compose ps` / `logs` does not list the app | The service is behind the `app` profile: add `--profile app`, or use `docker logs shortener-app` |
+| "Filed to create short url." for a valid-looking URL | `app.validate-original-url=true` sends a `HEAD` request first; targets that return 4xx/5xx or block `HEAD` are rejected |
 
