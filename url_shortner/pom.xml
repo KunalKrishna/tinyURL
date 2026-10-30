@@ -111,8 +111,8 @@
             <artifactId>bootstrap</artifactId>
             <version>5.3.8</version>
         </dependency>
-<!--        Data JPA -->
 
+<!--        Data JPA -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-jpa</artifactId>
@@ -141,15 +141,6 @@
             <scope>runtime</scope>
         </dependency>
 
-<!--        OTHER TOOLS-->
-        <!-- Source: https://mvnrepository.com/artifact/org.projectlombok/lombok -->
-<!--        <dependency>-->
-<!--            <groupId>org.projectlombok</groupId>-->
-<!--            <artifactId>lombok</artifactId>-->
-<!--            <version>1.18.42</version>-->
-<!--            <scope>compile</scope>-->
-<!--        </dependency>-->
-        <!-- Source: https://mvnrepository.com/artifact/org.slf4j/slf4j-api -->
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
@@ -158,38 +149,18 @@
         </dependency>
     </dependencies>
 
-    <build>
-        <plugins>
+<!--    <build>-->
+<!--        <plugins>-->
 <!--            <plugin>-->
-<!--                <groupId>org.apache.maven.plugins</groupId>-->
-<!--                <artifactId>maven-compiler-plugin</artifactId>-->
+<!--                <groupId>org.springframework.boot</groupId>-->
+<!--                <artifactId>spring-boot-maven-plugin</artifactId>-->
 <!--                <configuration>-->
-<!--                    <annotationProcessorPaths>-->
-<!--                        <path>-->
-<!--                            <groupId>org.projectlombok</groupId>-->
-<!--                            <artifactId>lombok</artifactId>-->
-<!--                            <version>1.18.42</version>-->
-<!--                        </path>-->
-<!--                    </annotationProcessorPaths>-->
+<!--                    <image>-->
+<!--                        <name> ${dockerImageName} </name>-->
+<!--                    </image>-->
 <!--                </configuration>-->
 <!--            </plugin>-->
-            <plugin>
-                <groupId>org.springframework.boot</groupId>
-                <artifactId>spring-boot-maven-plugin</artifactId>
-                <configuration>
-                    <image>
-                        <name> ${dockerImageName} </name>
-                    </image>
-<!--                    <excludes>-->
-<!--                        <exclude>-->
-<!--                            <groupId>org.projectlombok</groupId>-->
-<!--                            <artifactId>lombok</artifactId>-->
-<!--                            <version>1.18.42</version>-->
-<!--                        </exclude>-->
-<!--                    </excludes>-->
-                </configuration>
-            </plugin>
-        </plugins>
-    </build>
+<!--        </plugins>-->
+<!--    </build>-->
 
 </project>

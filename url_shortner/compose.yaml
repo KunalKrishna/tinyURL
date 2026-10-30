@@ -2,6 +2,8 @@
 # the ":-default" fallbacks keep local dev working without one.
 
 # The Database Infrastructure
+version: '3.8'
+
 services:
   postgres:
     image: 'postgres:17' # Pulls a ready-made official image instead of building one
@@ -18,15 +20,16 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
-
-  # Only started with `docker compose --profile app up`;
-  # `./mvnw spring-boot:run` (spring-boot-docker-compose) starts just postgres.
+    restart: unless-stopped
 
   # The Spring Boot Application
   spring-boot-url-shortener:
-    image: kunalkrishna85/spring-boot-url-shortener:${IMAGE_TAG:-latest}
-    container_name: spring-boot-url-shortener
-    profiles: ["app"]
+    container_name: shortener-app
+    # ─── ROUTE 4 INTEGRATION START ───
+    build:
+      context: .
+      dockerfile: Dockerfile
+    # ─────────────────────────────────
     environment: # Injects runtime database credentials into application.properties
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-postgresDB}
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
@@ -40,4 +43,4 @@ services:
         condition: service_healthy
 
 volumes:
-  postgres_data:
+  postgres_data: # ◄─── CRITICAL: This preserves your data across all updates

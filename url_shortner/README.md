@@ -1,10 +1,10 @@
-_Last Updated: 2026-10-27_
+_Last Updated: 2026-10-30_
 
 # TinyURL
 ## A project to learn System Design
 
 Planned Technology Stack 
-- Spring Boot 3.5.10
+- Spring Boot 4.1.2
 - bootstrap@5.3.8 -> later React
 - DB : Docker/PostgreSQL with Flyway Migrations
 - Redis cache
@@ -33,14 +33,14 @@ Single Spring Boot MVC app rendered server-side with Thymeleaf + Bootstrap.
 
 ## Prerequisites
 - Java 25
-- Docker (PostgreSQL container, and optionally running the app as an image)
+- Docker (PostgreSQL container, and building/running the app container)
 - Maven (or the bundled `mvnw` wrapper)
 
 ## Installation & Running Locally
 ```bash
 ./mvnw spring-boot:run
 ```
-`spring-boot-docker-compose` starts PostgreSQL from `compose.yaml` automatically. The app runs at http://localhost:8080.
+`spring-boot-docker-compose` starts the services from `compose.yaml` automatically. The app runs at http://localhost:8080.
 
 Sample accounts seeded by Flyway:
 
@@ -71,114 +71,91 @@ Tests need Docker running (Testcontainers starts a Postgres container): `./mvnw 
 | `POST /delete-urls` | USER | Delete selected URLs (`ids`) |
 | `GET /admin/dashboard?page=1` | ADMIN | All short URLs |
 
-## Deployment (Docker)
+## Deployment: build on EC2
 
-### TL;DR — command order
-Docker must be running for every step.
-
-| # | Command | What it does | Needs |
-|---|---|---|---|
-| 1 | `./mvnw spring-boot:build-image` | Compiles, runs tests, packages the jar, then builds a Docker image `kunalkrishna85/spring-boot-url-shortener:latest` | JDK 25, Docker |
-| 2 | `docker compose --profile app up -d` | Starts the `postgres` container, then the app container from the image built in step 1 | Image from step 1 |
-| 3 | open http://localhost:8080 | App is served from the container | |
-| – | `docker compose --profile app logs -f spring-boot-url-shortener` | Follow app logs | |
-| – | `docker compose --profile app down` | Stop & remove both containers (add `-v` to also drop DB data) | |
-
-Re-run steps 1 → 2 after every code change: the container runs the **image**, not your source code.
-
-> Local development is different: `./mvnw spring-boot:run` runs the app **on your machine (JVM)** and only starts Postgres in Docker. No image is built.
-
-### How `pom.xml` and `compose.yaml` are chained together
+The Docker image is **built on the EC2 instance itself** from the `Dockerfile` — no image registry (Docker Hub) is involved.
+GitHub Actions only runs the tests and then tells EC2 (over SSH) to pull the latest code and rebuild.
 
 ```mermaid
 flowchart LR
-    subgraph pom.xml
-        A["artifactId<br/>spring-boot-url-shortener"] --> B["property dockerImageName<br/>kunalkrishna85/${project.artifactId}"]
-        B --> C["spring-boot-maven-plugin<br/>&lt;image&gt;&lt;name&gt;"]
-    end
-    C -- "./mvnw spring-boot:build-image" --> D[("Docker image<br/>kunalkrishna85/spring-boot-url-shortener:latest")]
-    subgraph compose.yaml
-        E["service spring-boot-url-shortener<br/>image: kunalkrishna85/spring-boot-url-shortener<br/>profiles: [app]"]
-        F["service postgres<br/>postgres:17"]
-    end
-    D -- "same name = the link" --> E
-    E -- "SPRING_DATASOURCE_URL<br/>jdbc:postgresql://postgres:5432/postgresDB" --> F
+    A[git push to main] --> B["GitHub Actions<br/>job test-and-verify<br/>./mvnw -B verify"]
+    B -- "push to main only" --> C["job deploy-to-ec2<br/>appleboy/ssh-action"]
+    C -- SSH --> D["EC2<br/>git fetch + reset --hard origin/main"]
+    D --> E["docker compose up --build -d<br/>spring-boot-url-shortener"]
+    E --> F["Dockerfile<br/>stage 1: maven + JDK 25 build<br/>stage 2: JRE 25 alpine runtime"]
+    E --> G[("postgres:17<br/>volume postgres_data")]
 ```
 
-**1. `pom.xml` names the image.**
-```xml
-<artifactId>spring-boot-url-shortener</artifactId>
-<properties>
-    <dockerImageName>kunalkrishna85/${project.artifactId}</dockerImageName>   <!-- = kunalkrishna85/spring-boot-url-shortener -->
-</properties>
-...
-<plugin>
-    <artifactId>spring-boot-maven-plugin</artifactId>
-    <configuration>
-        <image><name>${dockerImageName}</name></image>   <!-- no tag given → :latest -->
-    </configuration>
-</plugin>
-```
-`kunalkrishna85/` is a Docker Hub namespace; it only matters once you push the image to Docker Hub.
-
-**2. `spring-boot:build-image` builds the image — there is no Dockerfile.**
-The `spring-boot-maven-plugin` runs the normal Maven lifecycle up to `package` (compile → test → fat jar), then hands the jar to
-[Cloud Native Buildpacks (Paketo)](https://paketo.io/), which run inside Docker and produce an optimized, layered image containing a JRE 25 and your app.
-Dev-only dependencies (`spring-boot-devtools`, `spring-boot-docker-compose`) are left out of that jar automatically.
-
-**3. `compose.yaml` uses the image by name.** The only link between the two files is the string `kunalkrishna85/spring-boot-url-shortener`.
-Compose looks for that image locally first; if it isn't there it tries to pull it from Docker Hub.
-
-**4. Configuration is overridden by environment variables.** `application.properties` says `spring.datasource.url=jdbc:postgresql://localhost:5432/...`,
-but inside a container `localhost` is the container itself. Compose sets `SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/postgresDB`
-(`postgres` = the service name on the Compose network). Spring Boot maps `SPRING_DATASOURCE_URL` → `spring.datasource.url`, and env vars win over the properties file.
-This is the same mechanism every cloud host uses to configure the app.
-
-**5. On startup** the app connects to Postgres, Flyway applies `db/migration/V*.sql`, then Tomcat listens on 8080, which Compose publishes as `localhost:8080`.
-
-### What each `compose.yaml` is used for
-| Scenario | Command | Starts |
-|---|---|---|
-| Local dev | `./mvnw spring-boot:run` | `postgres` only (via `spring-boot-docker-compose`; `app` profile not active) |
-| Full stack in Docker | `docker compose --profile app up -d` | `postgres` + app container |
-
-### Roadmap: CI/CD with GitHub Actions → EC2 / Railway / Render
-The local flow above maps directly onto a pipeline — the only new pieces are a **container registry** and **secrets**:
-
-```
-git push ──► GitHub Actions
-               1. checkout + setup JDK 25
-               2. ./mvnw spring-boot:build-image  (tag with git SHA, e.g. -Dspring-boot.build-image.imageName=…:${{ github.sha }})
-               3. docker login + docker push ──► registry (Docker Hub / GHCR / Amazon ECR)
-               4. deploy ──► target pulls the image and runs it with env vars
-```
-
-| Target | How step 4 works | Database | Notes |
-|---|---|---|---|
-| **AWS EC2** | Action SSHes into the instance, copies `compose.yaml`, runs `docker compose --profile app pull && docker compose --profile app up -d` | Postgres container from `compose.yaml`, or Amazon RDS (just change `SPRING_DATASOURCE_URL`) | Closest to local setup; you manage the VM. Graviton (arm64) instances need an arm64 image. |
-| **Render** | "Deploy an existing image" web service pointing at the registry; trigger via deploy hook URL from the Action | Render Postgres | No Compose; set env vars in the dashboard. Render injects `PORT`. |
-| **Railway** | Service from a Docker image (or let Railway build from the repo) | Railway Postgres plugin | No Compose; env vars in dashboard. Railway injects `PORT`. |
-
-### CI pipeline (`.github/workflows/ci.yml`, at the repo root)
-| Trigger | Steps |
+### How the files fit together
+| File | Role |
 |---|---|
-| Pull request → `main` | `./mvnw verify` (compile + tests; tests start a throwaway Postgres via Testcontainers) |
-| Push → `main` | the above, then `spring-boot:build-image` → push `kunalkrishna85/spring-boot-url-shortener:<git-sha>` and `:latest` to Docker Hub |
+| `.github/workflows/deploy.yml` | Workflow *"CI & EC2 Zero-Credit Deploy"*: job `test-and-verify` runs on PRs and pushes; job `deploy-to-ec2` runs only on push to `main`, after the tests pass |
+| `Dockerfile` | Multi-stage build. Stage 1 (`maven:3.9-eclipse-temurin-25`) downloads dependencies and compiles; stage 2 (`eclipse-temurin:25-jre-alpine`) runs `com.abitmanipulator.UrlShortnerApp` |
+| `compose.yaml` | `postgres` (official `postgres:17` image, data in the `postgres_data` volume) + `spring-boot-url-shortener` (`build: .` from the `Dockerfile`, container name `shortener-app`, port 8080) |
+| `.env` (on the server, git-ignored) | Secrets and environment-specific values read by `compose.yaml` |
 
-**One-time setup:** in GitHub → *Settings → Secrets and variables → Actions*, add `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN`
-(a Docker Hub access token with *Read & Write*).
+**Order of commands on EC2** (run by the workflow, or by hand):
+```bash
+cd ~/spring-boot-url-shortener && git fetch --all && git reset --hard origin/main
+cd url_shortner
+docker compose up --build -d spring-boot-url-shortener   # builds the image, starts postgres first (healthcheck), then the app
+docker image prune -f                                     # remove old dangling image layers
+```
+`--build` rebuilds the image from the new source; Docker's layer cache keeps unchanged steps (e.g. dependency download) fast.
+Postgres data survives every rebuild because it lives in the `postgres_data` volume.
 
-### Cloud-ready configuration
+### One-time EC2 setup
+1. **Launch** Ubuntu 24.04, `t3.small` (2 GB; the Maven build runs on the instance and needs RAM — on `t3.micro` add swap).
+   Security group: **22** from your IP (and from GitHub Actions for the SSH deploy), **8080** from anywhere. Do **not** open 5432.
+   Attach an **Elastic IP** so the address (and `APP_BASE_URL`) never changes.
+2. **Install Docker + Git:**
+   ```bash
+   curl -fsSL https://get.docker.com | sudo sh
+   sudo usermod -aG docker ubuntu   # log out and back in
+   sudo apt-get install -y git
+   ```
+3. **Clone and create the server `.env`:**
+   ```bash
+   git clone https://github.com/KunalKrishna/tinyURL.git ~/spring-boot-url-shortener
+   cd ~/spring-boot-url-shortener/url_shortner
+   cp .env.example .env && nano .env
+   ```
+   ```ini
+   POSTGRES_DB=postgresDB
+   POSTGRES_USER=postgres
+   POSTGRES_PASSWORD=<long-random-password>   # set BEFORE the first start
+   APP_BASE_URL=http://<elastic-ip>:8080        # public URL shown in short links
+   ```
+   `git reset --hard` on later deploys does not touch `.env`, because it is git-ignored.
+4. **First start:** `docker compose up --build -d`, then `curl -s localhost:8080/actuator/health` → `{"status":"UP"}`.
+5. **GitHub secrets** (*Settings → Secrets and variables → Actions*):
+
+   | Secret | Value |
+   |---|---|
+   | `EC2_HOST` | Elastic IP or DNS name of the instance |
+   | `EC2_USERNAME` | `ubuntu` |
+   | `EC2_SSH_KEY` | Contents of the instance's private key (`.pem`) |
+
+### `APP_BASE_URL`
+Only the **server's** `.env` needs the public URL; your local `.env` keeps `http://localhost:8080`.
+It is the prefix shown in short links (`baseUrl + '/s/' + shortKey`) and is not stored in the database, so changing it later
+(e.g. to `https://your-domain`) updates every link immediately.
+
+### Environment variables
 Everything environment-specific is an env var; `application.properties` only holds local-dev defaults.
 
 | Env var | Purpose | Default |
 |---|---|---|
-| `SPRING_DATASOURCE_URL` | JDBC URL — must be `jdbc:postgresql://host:5432/db`, **not** the `postgres://…` URL managed hosts show | `jdbc:postgresql://localhost:5432/postgresDB` |
-| `SPRING_DATASOURCE_USERNAME` / `SPRING_DATASOURCE_PASSWORD` | DB credentials | `postgres` / `postgres` |
+| `SPRING_DATASOURCE_URL` | JDBC URL (set by `compose.yaml` to `jdbc:postgresql://postgres:5432/<db>`) | `jdbc:postgresql://localhost:5432/postgresDB` |
+| `SPRING_DATASOURCE_USERNAME` / `SPRING_DATASOURCE_PASSWORD` | DB credentials (from `POSTGRES_USER` / `POSTGRES_PASSWORD` in `.env`) | `postgres` / `postgres` |
 | `APP_BASE_URL` | Public URL used in generated short links | `http://localhost:8080` |
-| `PORT` | HTTP port (`server.port=${PORT:8080}`); set automatically by Render/Railway | `8080` |
+| `PORT` | HTTP port (`server.port=${PORT:8080}`) | `8080` |
 
-- Health check path for Render/Railway/load balancers: `/actuator/health` (also `/actuator/health/liveness` and `/readiness`), public, no login.
-- **EC2 / any Compose host:** copy `compose.yaml` and `.env.example` → `.env`, set real values, then
-  `docker compose --profile app pull && docker compose --profile app up -d`. Pin a release with `IMAGE_TAG=<git-sha>`.
-- Postgres data now lives in the `postgres_data` volume and survives `down`; `POSTGRES_*` values only apply when that volume is first created (`down -v` to reset).
+Health check: `/actuator/health` (also `/liveness` and `/readiness`), public, no login.
+`IMAGE_TAG` in `.env.example` is no longer used (the image is built, not pulled).
+
+### Known issues (to fix)
+- GitHub only runs workflows from `.github/workflows` at the **repository root** (`tinyURL/`); `deploy.yml` currently lives in `url_shortner/.github/workflows/`, so it does not trigger.
+- `deploy.yml`: clone URL should be `https://github.com/${{ github.repository }}.git`, and `"~/..."` inside quotes is not expanded (use `"$HOME/spring-boot-url-shortener"`), so later deploys never update the code.
+- `Dockerfile`: `./mvnw` is not copied into the build stage (use `mvn`), and `/app/lib/*` does not match jars nested in the copied `~/.m2/repository` → build/startup fail. Standard fix: restore `spring-boot-maven-plugin` in `pom.xml`, `mvn package`, `java -jar app.jar`.
+- `compose.yaml` no longer has `profiles: ["app"]`, so `./mvnw spring-boot:run` also builds/starts the app container (port 8080 clash). `version: '3.8'` is obsolete.

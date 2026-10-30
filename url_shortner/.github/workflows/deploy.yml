@@ -1,0 +1,66 @@
+name: CI & EC2 Zero-Credit Deploy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+defaults:
+  run:
+    working-directory: url_shortner   # Ensures scripts execute inside your project sub-folder
+
+jobs:
+  test-and-verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
+
+      - name: Set up Java 25
+        uses: actions/setup-java@v6
+        with:
+          distribution: 'temurin'
+          java-version: '25'
+          cache: 'maven'
+
+      # Compile and execute unit/integration tests using local runner assets
+      - name: Build & Test
+        run: ./mvnw -B verify
+
+  deploy-to-ec2:
+    needs: test-and-verify
+    if: github.event_name == 'push' # This step will strictly execute ONLY on commits pushed directly to the main branch
+    runs-on: ubuntu-latest
+    steps:
+      - name: Execute Remote SSH Commands on EC2
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            # 1. Synchronize project directory via lightweight Git text updates
+            if [ ! -d "~/spring-boot-url-shortener" ]; then
+              git clone https://github.com{{ github.repository }}.git ~/spring-boot-url-shortener
+              cd ~/spring-boot-url-shortener
+            else
+              cd ~/spring-boot-url-shortener
+              git fetch --all
+              git reset --hard origin/main
+              # Pull the latest changes from GitHub securely
+              # git pull origin main
+            fi
+            
+            # 2. Enter the Maven sub-folder where compose.xml and Dockerfile live
+            cd url_shortner
+            chmod +x mvnw # Ensure the wrapper execution permissions are intact
+            
+            # 3. Use Compose to rebuild ONLY the changed layers of Route 4 locally on EC2.
+            # (Docker utilizes its disk cache for dependencies, keeping AWS credit usage at zero)
+            # --build: Forces Docker to recompile your newly pushed java classes.
+            # -d: Runs the application cluster silently in the background.
+            docker compose up --build -d spring-boot-url-shortener
+            
+            # 4. Housekeep intermediate dangling build states to preserve EC2 disk credits
+            docker image prune -f
