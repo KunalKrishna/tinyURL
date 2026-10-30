@@ -72,8 +72,8 @@ public class HomeController {
                     userId
             );
             var shortUrlDto = shortUrlService.createShortUrl(cmd);
-            redirectAttributes.addFlashAttribute("successMessage", "Short url created successfully." +
-                    properties.baseUrl()+"/s" + shortUrlDto.shortKey());
+            redirectAttributes.addFlashAttribute("successMessage", "Short url created successfully. " +
+                    properties.baseUrl() + "/s/" + shortUrlDto.shortKey());
         } catch (Exception e) {
             redirectAttributes.addFlashAttribute("errorMessage", "Filed to create short url.");
         }

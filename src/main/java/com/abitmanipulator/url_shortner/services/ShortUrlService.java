@@ -110,10 +110,8 @@ public class ShortUrlService {
         } else {
             shortUrl.setCreatedBy(userRepository.findById(cmd.userId()).orElseThrow());
             shortUrl.setIsPrivate(cmd.isPrivate());
-            shortUrl.setExpiresAt(cmd.expirationInDays() != null ?
-                                    Instant.now().plus(properties.defaultExpiryDays() , java.time.temporal.ChronoUnit.DAYS):
-                                    null
-                                );
+            int expiryDays = cmd.expirationInDays() != null ? cmd.expirationInDays() : properties.defaultExpiryDays();
+            shortUrl.setExpiresAt(Instant.now().plus(expiryDays, java.time.temporal.ChronoUnit.DAYS));
         }
         shortUrl.setClickCount(0l);
         shortUrl.setCreatedAt(Instant.now());
