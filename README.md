@@ -7,7 +7,7 @@ Planned Technology Stack
 - Spring Boot 4.1.2
 - bootstrap@5.3.8 -> later React
 - DB : Docker/PostgreSQL with Flyway Migrations
-- Redis cache
+- Redis cache 
 - 
 
 ## Features
@@ -40,7 +40,9 @@ Single Spring Boot MVC app rendered server-side with Thymeleaf + Bootstrap.
 ```bash
 ./mvnw spring-boot:run
 ```
-`spring-boot-docker-compose` starts the services from `compose.yaml` automatically. The app runs at http://localhost:8080.
+`spring-boot-docker-compose` starts PostgreSQL from `compose.yaml` automatically (the app service is behind the `app` profile, so it is not started). The app runs at http://localhost:8080.
+
+To run the full stack in Docker locally instead: `docker compose up --build -d spring-boot-url-shortener`.
 
 Sample accounts seeded by Flyway:
 
@@ -89,15 +91,15 @@ flowchart LR
 ### How the files fit together
 | File | Role |
 |---|---|
-| `.github/workflows/deploy.yml` | Workflow *"CI & EC2 Zero-Credit Deploy"*: job `test-and-verify` runs on PRs and pushes; job `deploy-to-ec2` runs only on push to `main`, after the tests pass |
-| `Dockerfile` | Multi-stage build. Stage 1 (`maven:3.9-eclipse-temurin-25`) downloads dependencies and compiles; stage 2 (`eclipse-temurin:25-jre-alpine`) runs `com.abitmanipulator.UrlShortnerApp` |
-| `compose.yaml` | `postgres` (official `postgres:17` image, data in the `postgres_data` volume) + `spring-boot-url-shortener` (`build: .` from the `Dockerfile`, container name `shortener-app`, port 8080) |
+| `.github/workflows/deploy.yml` (at the **repo root**, `tinyURL/.github/`) | Workflow *"CI & EC2 Zero-Credit Deploy"*: job `test-and-verify` runs on PRs and pushes; job `deploy-to-ec2` runs only on push to `main`, after the tests pass. GitHub only reads workflows from the repository root. |
+| `Dockerfile` | Multi-stage build. Stage 1 (`maven:3.9-eclipse-temurin-25`) downloads dependencies, then `mvn package` builds the fat jar; stage 2 (`eclipse-temurin:25-jre-alpine`) runs it with `java -jar /app/app.jar` |
+| `pom.xml` → `spring-boot-maven-plugin` | Repackages `target/*.jar` into the executable fat jar the Dockerfile copies (also provides `spring-boot:run`) |
+| `compose.yaml` | Project `name: url_shortner` (pinned so volumes/containers keep their names regardless of folder) · `postgres` (official `postgres:17` image, data in the `postgres_data` volume) + `spring-boot-url-shortener` (`build: .` from the `Dockerfile`, container name `shortener-app`, port 8080, `profiles: ["app"]` → only started when named or with `--profile app`) |
 | `.env` (on the server, git-ignored) | Secrets and environment-specific values read by `compose.yaml` |
 
 **Order of commands on EC2** (run by the workflow, or by hand):
 ```bash
 cd ~/spring-boot-url-shortener && git fetch --all && git reset --hard origin/main
-cd url_shortner
 docker compose up --build -d spring-boot-url-shortener   # builds the image, starts postgres first (healthcheck), then the app
 docker image prune -f                                     # remove old dangling image layers
 ```
@@ -117,7 +119,7 @@ Postgres data survives every rebuild because it lives in the `postgres_data` vol
 3. **Clone and create the server `.env`:**
    ```bash
    git clone https://github.com/KunalKrishna/tinyURL.git ~/spring-boot-url-shortener
-   cd ~/spring-boot-url-shortener/url_shortner
+   cd ~/spring-boot-url-shortener
    cp .env.example .env && nano .env
    ```
    ```ini
@@ -127,7 +129,7 @@ Postgres data survives every rebuild because it lives in the `postgres_data` vol
    APP_BASE_URL=http://<elastic-ip>:8080        # public URL shown in short links
    ```
    `git reset --hard` on later deploys does not touch `.env`, because it is git-ignored.
-4. **First start:** `docker compose up --build -d`, then `curl -s localhost:8080/actuator/health` → `{"status":"UP"}`.
+4. **First start:** `docker compose up --build -d spring-boot-url-shortener` (naming the service activates its `app` profile and starts `postgres` first), then `curl -s localhost:8080/actuator/health` → `{"status":"UP"}`.
 5. **GitHub secrets** (*Settings → Secrets and variables → Actions*):
 
    | Secret | Value |
@@ -154,8 +156,3 @@ Everything environment-specific is an env var; `application.properties` only hol
 Health check: `/actuator/health` (also `/liveness` and `/readiness`), public, no login.
 `IMAGE_TAG` in `.env.example` is no longer used (the image is built, not pulled).
 
-### Known issues (to fix)
-- GitHub only runs workflows from `.github/workflows` at the **repository root** (`tinyURL/`); `deploy.yml` currently lives in `url_shortner/.github/workflows/`, so it does not trigger.
-- `deploy.yml`: clone URL should be `https://github.com/${{ github.repository }}.git`, and `"~/..."` inside quotes is not expanded (use `"$HOME/spring-boot-url-shortener"`), so later deploys never update the code.
-- `Dockerfile`: `./mvnw` is not copied into the build stage (use `mvn`), and `/app/lib/*` does not match jars nested in the copied `~/.m2/repository` → build/startup fail. Standard fix: restore `spring-boot-maven-plugin` in `pom.xml`, `mvn package`, `java -jar app.jar`.
-- `compose.yaml` no longer has `profiles: ["app"]`, so `./mvnw spring-boot:run` also builds/starts the app container (port 8080 clash). `version: '3.8'` is obsolete.

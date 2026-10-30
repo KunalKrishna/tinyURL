@@ -6,10 +6,6 @@ on:
   pull_request:
     branches: [main]
 
-defaults:
-  run:
-    working-directory: url_shortner   # Ensures scripts execute inside your project sub-folder
-
 jobs:
   test-and-verify:
     runs-on: ubuntu-latest
@@ -40,20 +36,27 @@ jobs:
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
+            set -e   # stop (and fail the job) at the first failing command
+            APP_DIR="$HOME/spring-boot-url-shortener"   # "~" is not expanded inside quotes; $HOME is
+
             # 1. Synchronize project directory via lightweight Git text updates
-            if [ ! -d "~/spring-boot-url-shortener" ]; then
-              git clone https://github.com{{ github.repository }}.git ~/spring-boot-url-shortener
-              cd ~/spring-boot-url-shortener
+            if [ ! -d "$APP_DIR/.git" ]; then
+              git clone https://github.com/${{ github.repository }}.git "$APP_DIR"
+              cd "$APP_DIR"
             else
-              cd ~/spring-boot-url-shortener
+              cd "$APP_DIR"
               git fetch --all
               git reset --hard origin/main
               # Pull the latest changes from GitHub securely
               # git pull origin main
             fi
             
-            # 2. Enter the Maven sub-folder where compose.xml and Dockerfile live
-            cd url_shortner
+            # 2. One-time migration: the project used to live in url_shortner/. The git-ignored
+            #    .env survives `git reset --hard` there, so move it next to compose.yaml.
+            if [ -f url_shortner/.env ] && [ ! -f .env ]; then
+              mv url_shortner/.env .env
+            fi
+            rmdir url_shortner 2>/dev/null || true
             chmod +x mvnw # Ensure the wrapper execution permissions are intact
             
             # 3. Use Compose to rebuild ONLY the changed layers of Route 4 locally on EC2.

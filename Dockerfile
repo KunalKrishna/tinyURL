@@ -12,24 +12,23 @@
 FROM maven:3.9-eclipse-temurin-25 AS builder
 WORKDIR /build
 
-# Cache your Maven project dependencies
+# Cache your Maven project dependencies (this layer is reused until pom.xml changes)
 COPY pom.xml .
 RUN mvn dependency:go-offline -B
 
-# Copy local source structures and run clean packaging
+# Copy local source structures and run clean packaging.
+# Uses the image's own `mvn`: mvnw/.mvn are not copied into this stage.
 COPY src ./src
-RUN ./mvnw clean package -DskipTests
+RUN mvn -B clean package -DskipTests
 
 # --- Stage 2: Minimal Execution Runtime ---
 FROM eclipse-temurin:25-jre-alpine
 WORKDIR /app
 
-# Extract structural layers to maintain efficient cache boundaries on EC2
-COPY --from=builder /build/target/classes /app/classes
-COPY --from=builder /root/.m2/repository /app/lib
+# spring-boot-maven-plugin builds an executable fat jar: app classes + exactly the
+# runtime dependencies (BOOT-INF/lib) + the main class in its manifest
+COPY --from=builder /build/target/*.jar /app/app.jar
 
 EXPOSE 8080
 
-# Execute using Classpath flag pointing directly to your Spring Boot main class
-# (Remember to change com.example.Main to your real Application main class path)
-ENTRYPOINT ["java", "-cp", "/app/classes:/app/lib/*", "com.abitmanipulator.UrlShortnerApp"]
+ENTRYPOINT ["java", "-jar", "/app/app.jar"]

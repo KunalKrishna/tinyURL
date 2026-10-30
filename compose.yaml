@@ -1,9 +1,11 @@
 # Values come from a .env file next to this file (see .env.example);
 # the ":-default" fallbacks keep local dev working without one.
 
-# The Database Infrastructure
-version: '3.8'
+# Pinned project name (otherwise derived from the folder name). Keeps the existing
+# url_shortner_postgres_data volume and containers after the move to the repo root.
+name: url_shortner
 
+# The Database Infrastructure
 services:
   postgres:
     image: 'postgres:17' # Pulls a ready-made official image instead of building one
@@ -25,6 +27,9 @@ services:
   # The Spring Boot Application
   spring-boot-url-shortener:
     container_name: shortener-app
+    # Only started when targeted by name (`docker compose up --build -d spring-boot-url-shortener`,
+    # as the deploy workflow does) or with `--profile app`. `./mvnw spring-boot:run` starts just postgres.
+    profiles: ["app"]
     # ─── ROUTE 4 INTEGRATION START ───
     build:
       context: .
