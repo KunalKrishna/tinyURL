@@ -99,7 +99,7 @@ flowchart LR
 
 **Order of commands on EC2** (run by the workflow, or by hand):
 ```bash
-cd ~/spring-boot-url-shortener && git fetch --all && git reset --hard origin/main
+cd ~/spring-boot-url-shortener && git fetch origin main && git reset --hard origin/main
 docker compose up --build -d spring-boot-url-shortener   # builds the image, starts postgres first (healthcheck), then the app
 docker image prune -f                                     # remove old dangling image layers
 ```

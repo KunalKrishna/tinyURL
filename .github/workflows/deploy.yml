@@ -39,31 +39,23 @@ jobs:
             set -e   # stop (and fail the job) at the first failing command
             APP_DIR="$HOME/spring-boot-url-shortener"   # "~" is not expanded inside quotes; $HOME is
 
-            # 1. Synchronize project directory via lightweight Git text updates
+            # 1. Get the code: clone on the first run, afterwards fetch only the changed objects
             if [ ! -d "$APP_DIR/.git" ]; then
               git clone https://github.com/${{ github.repository }}.git "$APP_DIR"
-              cd "$APP_DIR"
-            else
-              cd "$APP_DIR"
-              git fetch --all
-              git reset --hard origin/main
-              # Pull the latest changes from GitHub securely
-              # git pull origin main
             fi
-            
-            # 2. One-time migration: the project used to live in url_shortner/. The git-ignored
-            #    .env survives `git reset --hard` there, so move it next to compose.yaml.
-            if [ -f url_shortner/.env ] && [ ! -f .env ]; then
-              mv url_shortner/.env .env
+            cd "$APP_DIR"
+            git fetch origin main
+            git reset --hard origin/main   # .env is git-ignored, so it survives this
+
+            # 2. Refuse to start with compose.yaml's fallback credentials / localhost base URL
+            if [ ! -f .env ]; then
+              echo "Missing $APP_DIR/.env: copy .env.example to .env on the server and set real values" >&2
+              exit 1
             fi
-            rmdir url_shortner 2>/dev/null || true
-            chmod +x mvnw # Ensure the wrapper execution permissions are intact
-            
-            # 3. Use Compose to rebuild ONLY the changed layers of Route 4 locally on EC2.
-            # (Docker utilizes its disk cache for dependencies, keeping AWS credit usage at zero)
-            # --build: Forces Docker to recompile your newly pushed java classes.
-            # -d: Runs the application cluster silently in the background.
+
+            # 3. Rebuild the image (Docker reuses the cached dependency layer unless pom.xml changed)
+            #    and start postgres + app. Naming the service activates its "app" profile.
             docker compose up --build -d spring-boot-url-shortener
-            
-            # 4. Housekeep intermediate dangling build states to preserve EC2 disk credits
+
+            # 4. Delete the untagged image left behind by the rebuild (the build cache is kept)
             docker image prune -f

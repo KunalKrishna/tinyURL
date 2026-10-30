@@ -1,8 +1,8 @@
 # Values come from a .env file next to this file (see .env.example);
 # the ":-default" fallbacks keep local dev working without one.
 
-# Pinned project name (otherwise derived from the folder name). Keeps the existing
-# url_shortner_postgres_data volume and containers after the move to the repo root.
+# Pinned project name (otherwise derived from the folder name, which differs between
+# a local checkout and ~/spring-boot-url-shortener on EC2). Prefixes the volume/container names.
 name: url_shortner
 
 # The Database Infrastructure
