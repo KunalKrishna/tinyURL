@@ -35,6 +35,8 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_SSH_KEY }}
+          # default is 10m; a build after a pom.xml change re-downloads every dependency on EC2
+          command_timeout: 30m
           script: |
             set -e   # stop (and fail the job) at the first failing command
             APP_DIR="$HOME/spring-boot-url-shortener"   # "~" is not expanded inside quotes; $HOME is
