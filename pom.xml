@@ -11,7 +11,7 @@
 
 	<groupId>com.abitmanipulator</groupId>
 	<artifactId>spring-boot-url-shortener</artifactId>
-	<version>v0.0.1-SNAPSHOT</version>
+	<version>0.0.1-SNAPSHOT</version>
 	<name>spring-boot-url-shortener</name>
 	<description>Demo project for URL Shortner</description>
 
