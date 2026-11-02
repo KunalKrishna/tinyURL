@@ -1,4 +1,4 @@
-_Last Updated: 2026-10-30_
+_Last Updated: 2026-11-01_
 
 # TinyURL
 ## A project to learn System Design
@@ -36,13 +36,47 @@ Single Spring Boot MVC app rendered server-side with Thymeleaf + Bootstrap.
 - Docker (PostgreSQL container, and building/running the app container)
 - Maven (or the bundled `mvnw` wrapper)
 
-## Installation & Running Locally
-```bash
-./mvnw spring-boot:run
-```
-`spring-boot-docker-compose` starts PostgreSQL from `compose.yaml` automatically (the app service is behind the `app` profile, so it is not started). The app runs at http://localhost:8080.
+## Running the app
+The app runs in three ways, all from the same `compose.yaml`.
+For a step-by-step walkthrough of what each command triggers internally (Maven lifecycle, Dockerfile stages, compose, GitHub Actions), see **[code-flow.md](code-flow.md)**.
 
-To run the full stack in Docker locally instead: `docker compose up --build -d spring-boot-url-shortener`.
+| Pathway | Postgres | App | URL |
+|---|---|---|---|
+| **1. Local**: app in your JVM | Local Docker | `./mvnw spring-boot:run` / IDE | http://localhost:8080 |
+| **2. Local full stack** | Local Docker | Local Docker (built from the `Dockerfile`) | http://localhost:8080 |
+| **3. EC2** (live) | Docker on EC2 | Docker on EC2, deployed by GitHub Actions | `http://<elastic-ip>:8080` |
+
+### 1. Local: Postgres in Docker, app in your JVM
+**First run**
+1. Install JDK 25 and **start Docker Desktop** (`docker info` must succeed).
+2. Optional: `cp .env.example .env` to change the DB credentials (without it, `postgres`/`postgres` and DB `postgresDB` are used).
+3. Run the app:
+   ```bash
+   ./mvnw spring-boot:run          # Windows PowerShell: .\mvnw.cmd spring-boot:run
+   ```
+   `spring-boot-docker-compose` runs `docker compose up` for you, so only **postgres** starts (the app service is behind the `app` profile).
+   The first run pulls `postgres:17` and creates the `url_shortner_postgres_data` volume, and Flyway applies `V1`–`V3` (tables + sample data).
+   You can also run `UrlShortnerApp` from the IDE, with the repo root as the working directory.
+4. Open http://localhost:8080 and log in with one of the sample accounts below.
+
+**Subsequent runs**
+- Run `./mvnw spring-boot:run` again. Postgres keeps running between runs (`lifecycle-management=start_only`), and Flyway only applies new `V*__*.sql` files.
+- Stop Postgres: `docker compose down`. Wipe all data and re-seed: `docker compose down -v`.
+
+### 2. Local full stack: app also in Docker
+A local dress rehearsal of the EC2 setup:
+```bash
+docker compose up --build -d spring-boot-url-shortener   # builds the image, starts postgres (healthy) → app
+docker logs -f shortener-app                              # follow startup
+docker compose --profile app down                         # stop both; data stays in the volume
+```
+After a code change, run the same `up --build` command again: only the changed layers are rebuilt.
+Stop any `spring-boot:run` first, because both use port 8080.
+
+### 3. EC2: automatic deploy
+**First run:** do the [One-time EC2 setup](#one-time-ec2-setup) below (instance, Docker, server `.env`, GitHub secrets), then push to `main`.
+**Subsequent updates:** `git push origin main`. GitHub Actions runs the tests, then SSHes into EC2 to `git reset` and `docker compose up --build`.
+Details: [Deployment: build on EC2](#deployment-build-on-ec2).
 
 Sample accounts seeded by Flyway:
 
@@ -59,7 +93,7 @@ Sample accounts seeded by Flyway:
 | `app.validate-original-url` | `true` | Check the original URL is reachable |
 | `app.page-size` | `10` | Page size for paginated lists |
 
-Tests need Docker running (Testcontainers starts a Postgres container): `./mvnw verify`.
+Tests need Docker running (Testcontainers starts a throwaway Postgres container; your dev DB is not touched): `./mvnw verify`. CI runs the same command.
 
 ## Usage
 | Endpoint | Access | Description |
@@ -179,4 +213,3 @@ Health check: `/actuator/health` (also `/liveness` and `/readiness`), public, no
 | Short links show `http://localhost:8080/...` | `APP_BASE_URL` is not set in the server `.env`. After editing `.env`, re-run the deploy (or `docker compose up -d spring-boot-url-shortener`): the container must be **recreated**, `docker restart` keeps the old environment |
 | `docker compose ps` / `logs` does not list the app | The service is behind the `app` profile: add `--profile app`, or use `docker logs shortener-app` |
 | "Filed to create short url." for a valid-looking URL | `app.validate-original-url=true` sends a `HEAD` request first; targets that return 4xx/5xx or block `HEAD` are rejected |
-

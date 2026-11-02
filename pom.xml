@@ -8,29 +8,23 @@
 		<version>4.1.2</version>
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
+
 	<groupId>com.abitmanipulator</groupId>
 	<artifactId>spring-boot-url-shortener</artifactId>
-	<version>0.0.1-SNAPSHOT</version>
+	<version>v0.0.1-SNAPSHOT</version>
 	<name>spring-boot-url-shortener</name>
 	<description>Demo project for URL Shortner</description>
-	<url/>
-	<licenses>
-		<license/>
-	</licenses>
-	<developers>
-		<developer/>
-	</developers>
-	<scm>
-		<connection/>
-		<developerConnection/>
-		<tag/>
-		<url/>
-	</scm>
+
+    <packaging>jar</packaging> <!-- jar(default), war, pom  : `mvn clean package` -->
+
 	<properties>
+        <!-- Variables, e.g. java.version, maven.compiler.release -->
+        <!-- Override parent defaults; usable as ${name} -->
 		<java.version>25</java.version>
         <dockerImageName>kunalkrishna85/${project.artifactId}</dockerImageName>
 	</properties>
-	<dependencies>
+
+	<dependencies> <!-- Libraries to put on the classpath -->
 <!--        DEV TOOLS-->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
@@ -43,8 +37,8 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-devtools</artifactId>
-            <optional>true</optional>
             <scope>runtime</scope>
+            <optional>true</optional>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>

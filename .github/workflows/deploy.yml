@@ -38,7 +38,7 @@ jobs:
           script: |
             set -e   # stop (and fail the job) at the first failing command
             APP_DIR="$HOME/spring-boot-url-shortener"   # "~" is not expanded inside quotes; $HOME is
-
+                                                        # /home/<User_Name>/.m2 = ~/.m2
             # 1. Get the code: clone on the first run, afterwards fetch only the changed objects
             if [ ! -d "$APP_DIR/.git" ]; then
               git clone https://github.com/${{ github.repository }}.git "$APP_DIR"
