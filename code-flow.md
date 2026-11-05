@@ -72,12 +72,14 @@ In Windows PowerShell use `.\mvnw.cmd <args>`. Git Bash, WSL, macOS and Linux us
 Maven's default lifecycle runs in a fixed order. Asking for a phase runs every phase before it:
 
 ```
- validate ──► compile ──► test ──► package ──► verify ──► install ──► deploy
-               │            │         │           │
-               │            │         │           └─ integration checks (this repo: same as after test)
+ validate ──► compile ──► test ──► package ──► integration-test ──► verify ──► install ──► deploy
+               │            │         │             │                    │
+               │            │         │             │                    └─ failsafe checks the IT results,
+               │            │         │             │                       jacoco writes target/site/jacoco/index.html
+               │            │         │             └─ failsafe runs *IT (full app + Testcontainers postgres:17)
                │            │         └─ target/spring-boot-url-shortener-v0.0.1-SNAPSHOT.jar
                │            │            then spring-boot-maven-plugin:repackage → executable fat jar
-               │            └─ surefire runs src/test → Testcontainers starts postgres:17 (needs Docker!)
+               │            └─ surefire runs *Test (unit + slice tests; repository slices start postgres:17 → needs Docker!)
                └─ javac → target/classes
 ```
 
@@ -85,8 +87,8 @@ Maven's default lifecycle runs in a fixed order. Asking for a phase runs every p
 |---|---|---|
 | `./mvnw spring-boot:run` | Compiles, then starts `UrlShortnerApp` from `target/classes` with devtools and docker-compose support on the classpath | LOCAL pathway |
 | `./mvnw clean` | Deletes `target/` | Before a clean build |
-| `./mvnw test` | compile + unit/integration tests | Local check |
-| `./mvnw -B verify` | Full lifecycle up to `verify`: compile, test, package. `-B` = batch mode (no colours or progress bars, suited to CI logs) | GitHub job `test-and-verify` |
+| `./mvnw test` | compile + unit and slice tests (`*Test`, Surefire); no integration tests | Quick local check |
+| `./mvnw -B verify` | Full lifecycle up to `verify`: compile, unit/slice tests, package, integration tests (`*IT`, Failsafe), coverage report. `-B` = batch mode (no colours or progress bars, suited to CI logs) | GitHub job `test-and-verify` |
 | `./mvnw package -DskipTests` | Builds the fat jar without running tests | Optional local jar build |
 | `java -jar target/*.jar` | Runs the fat jar. No docker-compose support inside it (see the note below), so start Postgres yourself first | Manual run |
 | `mvn dependency:go-offline -B` | Downloads every dependency and plugin into `~/.m2` without compiling | Dockerfile stage 1 (cache layer) |
@@ -244,10 +246,15 @@ Postgres keeps running after you stop the app (`start_only`). Stop it with `dock
 ### Tests (local, and the same thing CI runs)
 ```
 ./mvnw verify
-   └─ SpringBootUrlShortnerApplicationTests
-        └─ @Import(TestcontainersConfiguration) → starts a THROWAWAY postgres:17 on a random port
-             └─ @ServiceConnection → the DataSource points at it (application.properties is ignored)
-                  └─ Flyway migrates it → the tests check that `users` has ≥ 2 seeded rows
+   ├─ test phase (Surefire, *Test)
+   │    ├─ services/*Test             plain JUnit + Mockito, no Spring context (milliseconds)
+   │    ├─ web/controller/*Test       @WebMvcTest: MVC + Thymeleaf + real WebSecurityConfig, services mocked
+   │    └─ repository/*Test           @DataJpaTest / @JdbcTest + @Import(TestcontainersConfiguration)
+   │                                    → THROWAWAY postgres:17, Flyway-migrated, each test rolled back
+   └─ integration-test phase (Failsafe, *IT, all extend AbstractIntegrationTest)
+        └─ @SpringBootTest + MockMvc + @Import(TestcontainersConfiguration)
+             └─ @ServiceConnection → the DataSource points at the container (application.properties is ignored)
+                  └─ whole app, nothing mocked: login, create, redirect, private links, admin access
    (spring-boot-docker-compose is skipped in tests by default, so your dev DB is never touched)
 ```
 

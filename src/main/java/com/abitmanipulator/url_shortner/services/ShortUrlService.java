@@ -99,7 +99,7 @@ public class ShortUrlService {
             }
         }
 
-        var shortKey = generateRandomShortKey();
+        var shortKey = generateUniqueShortKey();
         var shortUrl = new ShortUrl();
         shortUrl.setOriginalUrl(cmd.originalUrl());
         shortUrl.setShortKey(shortKey);

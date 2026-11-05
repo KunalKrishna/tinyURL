@@ -30,7 +30,7 @@ flowchart LR
 | # | Branch | Scope | Local Docker services | Status |
 |---|---|---|---|---|
 | 0 | — | Restore the Maven wrapper (`mvnw`, `mvnw.cmd`) | — | ✅ Done |
-| 1 | `feature/testing` | Unit tests (JUnit 5, Mockito, AssertJ), slice tests (`@WebMvcTest` + security, `@DataJpaTest`), Testcontainers integration tests, JaCoCo coverage report. Fix found on the way: `createShortUrl` uses `generateRandomShortKey()` instead of `generateUniqueShortKey()` (a collision hits the `UNIQUE` constraint) | Postgres (Testcontainers) | ⬜ Planned |
+| 1 | `feature/testing` | Unit tests (JUnit 5, Mockito, AssertJ), slice tests (`@WebMvcTest` + security, `@DataJpaTest`, `@JdbcTest`), Testcontainers integration tests, JaCoCo coverage report. Bugs the tests found and this branch fixes: `@PreAuthorize` was ignored (no `@EnableMethodSecurity`, so any user could open `/admin/dashboard`); short keys were not checked for collisions; error pages returned HTTP 200; a missing `isPrivate` field caused an NPE. See [Testing](#testing) | Postgres (Testcontainers) | ✅ Done |
 | 2 | `feature/observability` | Structured JSON logs with `traceId`, Micrometer → Prometheus metrics, OpenTelemetry traces, Grafana dashboards. k6 load-test script that records the **baseline** redirect latency | `grafana/otel-lgtm` (Grafana, Prometheus, Tempo, Loki), k6 | ⬜ Planned |
 | 3 | `feature/redis` | Cache-aside for `shortKey → url` on `/s/{shortKey}` (TTL = time left until `expiresAt`, evicted on delete; private-link owner check still applied). Redis-backed rate limit on `POST /short-urls`. k6 before/after comparison | Redis | ⬜ Planned |
 | 4 | `feature/kafka-click-events` | The redirect publishes a `ClickEvent` (shortKey, timestamp, referrer, user-agent) and returns at once. A consumer updates `click_count` in batches, which removes the row write from the redirect path | Kafka (KRaft, single node), Kafka UI | ⬜ Planned |
@@ -141,7 +141,23 @@ Sample accounts seeded by Flyway:
 | `app.validate-original-url` | `true` | Check the original URL is reachable |
 | `app.page-size` | `10` | Page size for paginated lists |
 
-Tests need Docker running (Testcontainers starts a throwaway Postgres container; your dev DB is not touched): `./mvnw verify`. CI runs the same command.
+## Testing
+Tests need Docker running: Testcontainers starts a throwaway `postgres:17` with the Flyway migrations applied, so your dev DB is never touched.
+
+| Command | Runs |
+|---|---|
+| `./mvnw test` | Unit + slice tests (`*Test`, Surefire) |
+| `./mvnw verify` | The above + integration tests (`*IT`, Failsafe) + coverage report at `target/site/jacoco/index.html`. CI runs this |
+| `./mvnw test -Dtest=HomeControllerTest` | One test class |
+
+| Layer | Classes | Spring context | Database |
+|---|---|---|---|
+| Unit | `services/*Test` | None (JUnit 5 + Mockito + AssertJ) | — |
+| Web slice | `web/controller/*Test` | `@WebMvcTest`: MVC, Thymeleaf, real `WebSecurityConfig`; services are `@MockitoBean` | — |
+| Persistence slice | `repository/*Test` | `@DataJpaTest` / `@JdbcTest` | Testcontainers Postgres, each test rolled back |
+| Integration | `*IT` (extend `AbstractIntegrationTest`) | Full `@SpringBootTest` + MockMvc, nothing mocked | Testcontainers Postgres, shared by all ITs |
+
+All `*IT` classes share one configuration in `AbstractIntegrationTest`, so Spring boots the app and its container once for all of them.
 
 ## Usage
 | Endpoint | Access | Description |
@@ -260,4 +276,4 @@ Health check: `/actuator/health` (also `/liveness` and `/readiness`), public, no
 | Deploy log: `Missing …/.env` | Create the server `.env` (setup step 3), then re-run the deploy |
 | Short links show `http://localhost:8080/...` | `APP_BASE_URL` is not set in the server `.env`. After editing `.env`, re-run the deploy (or `docker compose up -d spring-boot-url-shortener`): the container must be **recreated**, `docker restart` keeps the old environment |
 | `docker compose ps` / `logs` does not list the app | The service is behind the `app` profile: add `--profile app`, or use `docker logs shortener-app` |
-| "Filed to create short url." for a valid-looking URL | `app.validate-original-url=true` sends a `HEAD` request first; targets that return 4xx/5xx or block `HEAD` are rejected |
+| "Failed to create short url." for a valid-looking URL | `app.validate-original-url=true` sends a `HEAD` request first; targets that return 4xx/5xx or block `HEAD` are rejected |

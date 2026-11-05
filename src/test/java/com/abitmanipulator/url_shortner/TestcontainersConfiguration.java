@@ -6,9 +6,10 @@ import org.springframework.context.annotation.Bean;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 import org.testcontainers.utility.DockerImageName;
 
-// @ServiceConnection points spring.datasource.* at this container, overriding application.properties
+// @ServiceConnection points spring.datasource.* at this container, overriding application.properties.
+// Public so slice tests in other packages (repository, ...) can @Import it.
 @TestConfiguration(proxyBeanMethods = false)
-class TestcontainersConfiguration {
+public class TestcontainersConfiguration {
 
     @Bean
     @ServiceConnection
