@@ -1,14 +1,62 @@
-_Last Updated: 2026-11-01_
+_Last Updated: 2026-11-05_
 
 # TinyURL
 ## A project to learn System Design
 
-Planned Technology Stack 
+Technology Stack
 - Spring Boot 4.1.2
 - bootstrap@5.3.8 -> later React
 - DB : Docker/PostgreSQL with Flyway Migrations
-- Redis cache 
-- 
+- Planned: see [TO-DO](#to-do)
+
+## TO-DO
+Each technology is added on its own feature branch (merged by PR) and is first run **locally in Docker**.
+EC2 deployment of the new services is planned only once the whole local stack works.
+
+### Target architecture
+```mermaid
+flowchart LR
+    B[Browser] --> A[Spring Boot app]
+    A <--> R[("Redis<br/>cache · rate limit · sessions")]
+    A <--> P[("PostgreSQL<br/>users, urls (source of truth)")]
+    A -- ClickEvent --> K[[Kafka]]
+    K --> C1[click-count consumer] --> P
+    K --> C2[analytics consumer] --> D[("DynamoDB<br/>click analytics")]
+    K -.optional.-> C3[search indexer] -.-> E[("Elasticsearch")]
+    A -- metrics · traces · logs --> G["Grafana LGTM"]
+```
+
+### Roadmap
+| # | Branch | Scope | Local Docker services | Status |
+|---|---|---|---|---|
+| 0 | — | Restore the Maven wrapper (`mvnw`, `mvnw.cmd`) | — | ✅ Done |
+| 1 | `feature/testing` | Unit tests (JUnit 5, Mockito, AssertJ), slice tests (`@WebMvcTest` + security, `@DataJpaTest`), Testcontainers integration tests, JaCoCo coverage report. Fix found on the way: `createShortUrl` uses `generateRandomShortKey()` instead of `generateUniqueShortKey()` (a collision hits the `UNIQUE` constraint) | Postgres (Testcontainers) | ⬜ Planned |
+| 2 | `feature/observability` | Structured JSON logs with `traceId`, Micrometer → Prometheus metrics, OpenTelemetry traces, Grafana dashboards. k6 load-test script that records the **baseline** redirect latency | `grafana/otel-lgtm` (Grafana, Prometheus, Tempo, Loki), k6 | ⬜ Planned |
+| 3 | `feature/redis` | Cache-aside for `shortKey → url` on `/s/{shortKey}` (TTL = time left until `expiresAt`, evicted on delete; private-link owner check still applied). Redis-backed rate limit on `POST /short-urls`. k6 before/after comparison | Redis | ⬜ Planned |
+| 4 | `feature/kafka-click-events` | The redirect publishes a `ClickEvent` (shortKey, timestamp, referrer, user-agent) and returns at once. A consumer updates `click_count` in batches, which removes the row write from the redirect path | Kafka (KRaft, single node), Kafka UI | ⬜ Planned |
+| 5 | `feature/dynamodb-analytics` | Second Kafka consumer writes every click to DynamoDB (partition key `shortKey`, sort key `timestamp`, TTL). Per-link analytics page (clicks per day). **Analytics only**: users and URLs stay in Postgres. AWS SDK v2 Enhanced Client | `amazon/dynamodb-local` | ⬜ Planned |
+| 6 | `feature/elasticsearch-search` | **Optional.** Search URLs (e.g. "all links to github.com") from an index fed by `url-created` events (CQRS read model) | Elasticsearch (heap capped) | ⬜ Optional |
+
+### Later
+- **Horizontal scaling:** nginx load balancer in front of 2 app replicas, Spring Session in Redis
+- **Resilience4j:** timeout + circuit breaker around `UrlExistenceValidator`, fallback to Postgres when Redis is down
+- **Cleanup job:** `@Scheduled` removal of expired URLs (ShedLock once there are several replicas)
+- **REST API + OpenAPI** (springdoc)
+- **React** frontend replacing Thymeleaf
+- **EC2 deployment** of the full stack
+
+### Decided against
+| Tech | Reason |
+|---|---|
+| DynamoDB for users/URLs | The data is relational (FK, sort by `createdAt`, offset pagination); Postgres fits it better |
+| ELK for logs | Duplicates the Grafana stack; one observability stack only |
+| ZooKeeper | Kafka runs in KRaft mode |
+| Kubernetes, microservices split, a second NoSQL store | More moving parts without new lessons for a monolith this size |
+
+### Local Docker conventions
+- Every new service goes into `compose.yaml` behind its own **compose profile** (e.g. `cache`, `messaging`, `observability`, `analytics`, `search`). `spring-boot-docker-compose` runs `docker compose up` on every app start, so the profiles keep `spring-boot:run` from starting the whole stack; choose them with `spring.docker.compose.profiles.active`.
+- Rough memory budget: Postgres 0.1 GB, Redis < 0.05 GB, Kafka 0.6 GB, Kafka UI 0.3 GB, Grafana LGTM 1 GB, DynamoDB Local 0.2 GB, Elasticsearch 1 GB. That is about 3.5 GB with everything running; check Docker Desktop's WSL memory limit.
+- Each branch adds Testcontainers tests for its service, so `./mvnw verify` keeps working in CI without compose.
 
 ## Features
 - Shorten long URLs with a randomly generated short key (optional check that the original URL exists)
