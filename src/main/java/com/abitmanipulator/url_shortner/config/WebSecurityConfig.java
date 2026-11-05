@@ -4,6 +4,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.access.hierarchicalroles.RoleHierarchy;
 import org.springframework.security.access.hierarchicalroles.RoleHierarchyImpl;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.CsrfConfigurer;
@@ -13,6 +14,9 @@ import org.springframework.security.web.SecurityFilterChain;
 
 @Configuration
 @EnableWebSecurity
+// Required for @PreAuthorize on controllers: without it those annotations are silently ignored
+// and every logged-in user could open /admin/** (only the URL rules below would apply).
+@EnableMethodSecurity
 public class WebSecurityConfig {
     @Bean
     public PasswordEncoder passwordEncoder() { return new BCryptPasswordEncoder(); }
@@ -45,8 +49,9 @@ public class WebSecurityConfig {
         return http.build();
     }
 
+    // static: registered before method security's own @Configuration is initialized, so @PreAuthorize uses it too
     @Bean
-    RoleHierarchy roleHierarchy() {
+    static RoleHierarchy roleHierarchy() {
         return RoleHierarchyImpl.fromHierarchy("ROLE_ADMIN > ROLE_USER"); // A > B > C > D ...
     }
 }

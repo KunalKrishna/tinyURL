@@ -68,14 +68,14 @@ public class HomeController {
             CreateShortUrlCmd cmd = new CreateShortUrlCmd(
                     form.originalUrl(),
                     form.expirationInDays(),
-                    form.isPrivate(),
+                    Boolean.TRUE.equals(form.isPrivate()), // null (checkbox field absent) means public, not an NPE
                     userId
             );
             var shortUrlDto = shortUrlService.createShortUrl(cmd);
             redirectAttributes.addFlashAttribute("successMessage", "Short url created successfully. " +
                     properties.baseUrl() + "/s/" + shortUrlDto.shortKey());
         } catch (Exception e) {
-            redirectAttributes.addFlashAttribute("errorMessage", "Filed to create short url.");
+            redirectAttributes.addFlashAttribute("errorMessage", "Failed to create short url.");
         }
         return "redirect:/";
     }
